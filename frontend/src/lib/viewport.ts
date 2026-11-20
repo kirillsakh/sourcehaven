@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 export const WIDE_LAYOUT_QUERY = "(min-width: 1280px)";
 export const TWO_COLUMN_QUERY = "(min-width: 800px)";
@@ -26,8 +26,13 @@ function subscribeTo(query: string, notify: () => void): () => void {
 
 /** Follow a media query; counts as matching during server rendering. */
 export function useMediaQuery(query: string): boolean {
-  return useSyncExternalStore(
+  // A new subscribe function makes React unsubscribe and subscribe again on every render.
+  const subscribe: (notify: () => void) => () => void = useCallback(
     (notify: () => void): (() => void) => subscribeTo(query, notify),
+    [query],
+  );
+  return useSyncExternalStore(
+    subscribe,
     (): boolean => matchesQuery(query),
     (): boolean => true,
   );

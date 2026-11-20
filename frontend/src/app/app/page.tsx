@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useRef,
   useState,
   type ReactElement,
@@ -39,13 +40,22 @@ export default function AppPage(): ReactElement {
   const { activeTurnKey, activate }: ConversationState = conversation;
   const activeTurn: TurnViewModel | null =
     conversation.turns.find((turn: TurnViewModel) => turn.key === activeTurnKey) ?? null;
-  const uploadsAllowed: boolean =
-    limits !== null && documents.documents.length < limits.max_documents;
-
   const noDocuments: boolean = documents.documents.length === 0;
   // From 800px the documents are a plain column, so the disclosure is held open and its summary
   // hidden; on a phone the reader's choice wins over the default of open until a document is listed.
   const documentsOpen: boolean = twoColumns || (phoneDocumentsOpen ?? noDocuments);
+
+  const { addFiles }: DocumentsState = documents;
+  // On a phone the upload and rejection rows sit inside the disclosure, so adding files opens it.
+  const addFilesAndShow: (files: File[]) => void = useCallback(
+    (files: File[]): void => {
+      if (files.length > 0) {
+        setPhoneDocumentsOpen(true);
+      }
+      addFiles(files);
+    },
+    [addFiles],
+  );
 
   // A modal drawer left open would keep the page inert once the evidence column is showing.
   if (threeColumns && drawerOpen) {
@@ -123,7 +133,7 @@ export default function AppPage(): ReactElement {
               documents={documents.documents}
               uploads={documents.uploads}
               selected={documents.selected}
-              onFiles={documents.addFiles}
+              onFiles={addFilesAndShow}
               onToggle={documents.toggle}
               onSelectAll={documents.setAllSelected}
               onDismissUpload={documents.dismissUpload}
@@ -149,7 +159,7 @@ export default function AppPage(): ReactElement {
             onStop={conversation.stop}
             onActivate={activateTurn}
             onShowEvidence={showEvidence}
-            onFiles={documents.addFiles}
+            onFiles={addFilesAndShow}
             onScopeClick={focusDocuments}
           />
         </div>
@@ -170,7 +180,7 @@ export default function AppPage(): ReactElement {
           />
         )}
       </EvidenceDrawer>
-      <DropOverlay enabled={uploadsAllowed} limits={limits} onFiles={documents.addFiles} />
+      <DropOverlay enabled={limits !== null} limits={limits} onFiles={addFilesAndShow} />
     </div>
   );
 }
