@@ -120,7 +120,10 @@ entirely after the answer, 98 line-split sentences plus 6 citing sentences took 
 2.3 s, past the time limit; embedding the passage sentences was about 1.6 s of that and the citing
 sentences about 0.1 s. Dropping uncited sources would not have helped, since all four were cited.
 This led to the two changes marked above: joining wrapped lines and embedding while the answer
-streams. Measurements after those changes: see the end of this section.
+streams. After both changes (same host and documents, 30 runs): 80 passage sentences and 6 citing
+sentences; the background passage embedding takes p50 1.4 s and p95 2.0 s while the answer streams,
+and the work left after the answer takes p50 120 ms and p95 175 ms (max 220 ms). A very short
+answer can leave part of the background embedding to wait for; the 2 s limit still bounds it.
 
 **Code seams.**
 
