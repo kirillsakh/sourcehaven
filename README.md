@@ -65,6 +65,10 @@ what was delivered (and deferred) in `docs/superpowers/checkpoints/`.
 
 [MIT](LICENSE)
 
+## Contact
+
+Questions or feedback: [LinkedIn](https://www.linkedin.com/in/kirillsakh).
+
 ## Development setup
 
 Requirements: Python 3.14, [uv](https://docs.astral.sh/uv/) 0.9.x, Docker with Compose (for the
