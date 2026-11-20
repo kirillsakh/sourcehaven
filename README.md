@@ -1,16 +1,71 @@
 # Sourcehaven
 
-A web application for asking grounded, cited questions about your own documents.
+Ask questions about your own PDFs and get answers that cite the exact pages they came from.
 
-Anonymous visitors upload PDFs, a worker ingests them into Postgres with pgvector, and questions
-are answered with streamed text and validated page citations. Each visitor's data is isolated by the
-application and by row-level security.
+- **Upload** PDFs by dragging them anywhere onto the page; each file shows its upload and indexing
+  progress.
+- **Ask** in plain English. The answer streams in, with numbered citations such as `[1]`.
+- **Check the evidence.** Click a citation and its quote is highlighted next to the answer, with the
+  file name and page.
+- **Stay in control.** Choose which documents an answer may use, and remove documents at any time;
+  their quotes are erased from earlier answers too.
+- **Private by design.** Visitors are anonymous, and each visitor's documents are isolated by the
+  application and by PostgreSQL row-level security.
 
-Status: milestones M0 (skeleton and packaging) and M1 (end-to-end slice) are complete. See
-`docs/superpowers/specs/` for the design, `docs/superpowers/plans/` for the plan and
-`docs/superpowers/checkpoints/2026-11-20-m1-complete.md` for what was delivered and what is deferred.
+## How it works
 
-## Setup
+```mermaid
+flowchart LR
+    browser["Browser<br/>Next.js app"] -->|"http :8080"| caddy["Caddy"]
+    caddy -->|"pages"| web["web<br/>Next.js server"]
+    caddy -->|"/api/*, streamed answers (SSE)"| api["api<br/>FastAPI"]
+    api --> db[("PostgreSQL 18<br/>pgvector, row-level security")]
+    api --> files[("uploads volume")]
+    api -->|"embed the question"| tei["Embeddings<br/>Hugging Face TEI"]
+    api -->|"generate the answer"| llm["OpenAI"]
+    worker["worker<br/>PDF ingestion"] --> db
+    worker --> files
+    worker -->|"embed chunks"| tei
+```
+
+1. **Ingestion:** the worker extracts each page's text, splits it into chunks that remember their
+   pages, embeds them and stores them in PostgreSQL with pgvector.
+2. **Answering:** the API embeds the question, retrieves the closest chunks from the selected
+   documents only, and streams the model's answer over server-sent events.
+3. **Citations:** every `[n]` in the answer is checked against the passages that were actually
+   supplied; the validated sources, with page numbers and quotes, are stored with the answer.
+
+**Stack:** Python 3.14, FastAPI, SQLAlchemy (async), PostgreSQL 18 + pgvector, Hugging Face Text
+Embeddings Inference, OpenAI, Next.js 16, React 19, TypeScript, Docker Compose, Caddy.
+
+## Run it locally
+
+You need Docker with Compose. The first start downloads the embedding model (about 1.2 GB), and the
+embeddings server needs about 3 GB of memory.
+
+```sh
+git clone https://github.com/kirillsakh/sourcehaven.git && cd sourcehaven
+cp .env.example .env    # replace every "replace-me": one password for the database values,
+                        # and your OpenAI API key for OPENAI_API_KEY
+docker compose -f compose.yaml -f compose.dev.yaml up -d --build
+```
+
+Then open <http://127.0.0.1:8080/app>. Without an OpenAI key, set
+`SOURCEHAVEN_GENERATION_PROVIDER=fake` in `.env`: everything works offline, with canned answers.
+Stop the stack with `docker compose -f compose.yaml -f compose.dev.yaml down`.
+
+## Status
+
+Milestones M0 (skeleton and packaging) and M1 (end-to-end slice) are complete, plus two additions
+ahead of schedule: the `/app` interface and document removal. Next is M2, measuring retrieval
+quality. The design lives in `docs/superpowers/specs/`, the plans in `docs/superpowers/plans/` and
+what was delivered (and deferred) in `docs/superpowers/checkpoints/`.
+
+## License
+
+[MIT](LICENSE)
+
+## Development setup
 
 Requirements: Python 3.14, [uv](https://docs.astral.sh/uv/) 0.9.x, Docker with Compose (for the
 integration tests and the dev stack) and Node 24 (frontend only).
@@ -63,8 +118,8 @@ events through Caddy.
   start); stop it or ignore it if you do not need it.
 - Real providers: set `SOURCEHAVEN_EMBEDDING_PROVIDER=tei`, `SOURCEHAVEN_GENERATION_PROVIDER=openai`
   and a real `OPENAI_API_KEY` in `.env`, recreate the stack and run the smoke script again; it should
-  print a streamed answer citing page 1 and costs a fraction of a cent. This check has not been run
-  yet (no key was available during development).
+  print a streamed answer citing page 1 and costs a fraction of a cent. The app was checked by hand in
+  the browser with the real providers on 2026-11-20.
 - The first start downloads the embedding model into the `tei-models` volume. Stop the stack with
   `docker compose -f compose.yaml -f compose.dev.yaml down` (add `-v` only to delete all data).
 
