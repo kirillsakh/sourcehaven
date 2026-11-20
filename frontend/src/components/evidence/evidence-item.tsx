@@ -41,9 +41,9 @@ export function EvidenceItem({
     <li ref={item} className={styles.item}>
       <button
         type="button"
-        className={styles.label}
+        className={deleted ? `${styles.label} ${styles.deletedLabel}` : styles.label}
         aria-pressed={active}
-        aria-label={`Highlight source ${shown}`}
+        aria-label={deleted ? `Source ${shown}, document deleted` : `Highlight source ${shown}`}
         onClick={(): void => onActivate(source.label)}
       >
         [{shown}]

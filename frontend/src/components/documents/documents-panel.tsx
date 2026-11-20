@@ -22,6 +22,7 @@ export function DocumentsPanel({
   onSelectAll,
   onDismissUpload,
   listRef,
+  chooseFilesRef,
 }: {
   limits: SessionLimits | null;
   documents: DocumentInfo[];
@@ -36,6 +37,7 @@ export function DocumentsPanel({
   onSelectAll: (all: boolean) => void;
   onDismissUpload: (key: string) => void;
   listRef?: Ref<HTMLUListElement>;
+  chooseFilesRef?: Ref<HTMLButtonElement>;
 }): ReactElement {
   const headingId: string = useId();
   const full: boolean = limits !== null && documents.length >= limits.max_documents;
@@ -52,7 +54,12 @@ export function DocumentsPanel({
           <span className={styles.count}>{`${documents.length} of ${limits.max_documents}`}</span>
         )}
       </header>
-      <DropTray limits={limits} disabled={limits === null || full} onFiles={onFiles} />
+      <DropTray
+        limits={limits}
+        disabled={limits === null || full}
+        onFiles={onFiles}
+        chooseRef={chooseFilesRef}
+      />
       {documents.length > 0 && (
         <SelectAll state={allState} disabled={!hasReady} onSelectAll={onSelectAll} />
       )}

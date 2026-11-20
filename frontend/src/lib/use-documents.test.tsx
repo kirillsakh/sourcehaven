@@ -10,7 +10,7 @@ import {
   type DocumentInfo,
   type SessionLimits,
 } from "@/lib/api";
-import { useDocuments } from "@/lib/use-documents";
+import { useDocuments, type DocumentsState } from "@/lib/use-documents";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
@@ -25,6 +25,9 @@ const limits: SessionLimits = {
   max_upload_bytes: 20 * 1024 * 1024,
   max_question_chars: 2000,
 };
+
+const IN_USE_TEXT: string =
+  "An answer is still being written from this document. Remove it when the answer is finished.";
 
 const mockedDelete = vi.mocked(deleteDocument);
 const mockedList = vi.mocked(listDocuments);
@@ -60,6 +63,10 @@ function deferred<T>(): Deferred<T> {
     reject = rej;
   });
   return { promise, resolve, reject };
+}
+
+interface Answering {
+  answering: boolean;
 }
 
 type Mounted = RenderHookResult<ReturnType<typeof useDocuments>, { current: SessionLimits }>;
@@ -521,6 +528,36 @@ describe("useDocuments", () => {
 
       expect(result.current.removeErrors.has("a")).toBe(false);
       expect(result.current.documents).toEqual([]);
+    });
+
+    it("clears an in-use refusal once the answer is finished and keeps other failures", async () => {
+      mockedList.mockResolvedValueOnce([doc("a", "ready", "1"), doc("b", "ready", "2")]);
+      mockedDelete
+        .mockRejectedValueOnce(new ApiError(409, "document_in_use"))
+        .mockRejectedValueOnce(new ApiError(500, "internal"));
+      const { result, rerender }: RenderHookResult<DocumentsState, Answering> = renderHook<
+        DocumentsState,
+        Answering
+      >(({ answering }: Answering) => useDocuments(limits, answering), {
+        initialProps: { answering: false },
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      await act(async () => {
+        await result.current.remove("a");
+        await result.current.remove("b");
+      });
+      const otherFailure: string | undefined = result.current.removeErrors.get("b");
+      expect(otherFailure).toBeDefined();
+      expect(result.current.removeErrors.get("a")).toBe(IN_USE_TEXT);
+
+      rerender({ answering: true });
+      expect(result.current.removeErrors.get("a")).toBe(IN_USE_TEXT);
+
+      rerender({ answering: false });
+      expect(result.current.removeErrors.has("a")).toBe(false);
+      expect(result.current.removeErrors.get("b")).toBe(otherFailure);
     });
 
     it("sends one request when the same document is removed twice at once", async () => {

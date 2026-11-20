@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type ReactElement,
@@ -30,9 +31,11 @@ import {
 
 export default function AppPage(): ReactElement {
   const { limits, error: startError }: SessionState = useSession();
-  const documents: DocumentsState = useDocuments(limits);
   const conversation: ConversationState = useConversation(limits);
+  const documents: DocumentsState = useDocuments(limits, conversation.generating);
   const documentList: RefObject<HTMLUListElement | null> = useRef<HTMLUListElement | null>(null);
+  const chooseFiles: RefObject<HTMLButtonElement | null> = useRef<HTMLButtonElement | null>(null);
+  const [removals, setRemovals] = useState<number>(0);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [phoneDocumentsOpen, setPhoneDocumentsOpen] = useState<boolean | null>(null);
   const twoColumns: boolean = useMediaQuery(TWO_COLUMN_QUERY);
@@ -70,11 +73,21 @@ export default function AppPage(): ReactElement {
       void remove(id).then((removed: boolean): void => {
         if (removed) {
           markDocumentDeleted(id);
+          setRemovals((count: number): number => count + 1);
         }
       });
     },
     [remove, markDocumentDeleted],
   );
+
+  // The removed row held focus, so it falls to the body unless the reader has moved it since.
+  // The list is gone once nothing is listed; choose files is then the nearest control left.
+  useEffect((): void => {
+    const focused: Element | null = document.activeElement;
+    if (removals > 0 && (focused === null || focused === document.body)) {
+      (documentList.current ?? chooseFiles.current)?.focus();
+    }
+  }, [removals]);
 
   function focusDocuments(): void {
     flushSync(() => setPhoneDocumentsOpen(true));
@@ -156,6 +169,7 @@ export default function AppPage(): ReactElement {
               onSelectAll={documents.setAllSelected}
               onDismissUpload={documents.dismissUpload}
               listRef={documentList}
+              chooseFilesRef={chooseFiles}
             />
           </div>
         </details>

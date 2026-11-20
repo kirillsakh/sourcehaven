@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DocumentsPanel } from "@/components/documents/documents-panel";
@@ -45,20 +46,20 @@ function handlers(): PanelHandlers {
   };
 }
 
-function renderPanel(
-  options: {
-    limits?: SessionLimits | null;
-    documents?: DocumentInfo[];
-    uploads?: UploadRow[];
-    selected?: string[];
-    removing?: string[];
-    removeErrors?: [string, string][];
-    removeDisabledReason?: string | null;
-    handlers?: PanelHandlers;
-  } = {},
-): ReturnType<typeof render> {
+interface PanelOptions {
+  limits?: SessionLimits | null;
+  documents?: DocumentInfo[];
+  uploads?: UploadRow[];
+  selected?: string[];
+  removing?: string[];
+  removeErrors?: [string, string][];
+  removeDisabledReason?: string | null;
+  handlers?: PanelHandlers;
+}
+
+function panel(options: PanelOptions = {}): ReactElement {
   const given: PanelHandlers = options.handlers ?? handlers();
-  return render(
+  return (
     <DocumentsPanel
       limits={options.limits === undefined ? limits : options.limits}
       documents={options.documents ?? []}
@@ -68,8 +69,12 @@ function renderPanel(
       removeErrors={new Map(options.removeErrors ?? [])}
       removeDisabledReason={options.removeDisabledReason ?? null}
       {...given}
-    />,
+    />
   );
+}
+
+function renderPanel(options: PanelOptions = {}): ReturnType<typeof render> {
+  return render(panel(options));
 }
 
 function checkbox(name: string): HTMLInputElement {
@@ -387,6 +392,29 @@ describe("DocumentsPanel", () => {
       expect(document.getElementById(reasonId ?? "")?.textContent).toBe(IN_USE);
 
       await userEvent.click(remove);
+      expect(given.onRemove).not.toHaveBeenCalled();
+    });
+
+    it("disables the confirming Remove and describes why once an answer starts", async () => {
+      const given: PanelHandlers = handlers();
+      const view: ReturnType<typeof render> = renderPanel({
+        documents: [doc("contract")],
+        handlers: given,
+      });
+      await userEvent.click(screen.getByRole("button", { name: "Remove contract.pdf" }));
+
+      view.rerender(
+        panel({ documents: [doc("contract")], removeDisabledReason: IN_USE, handlers: given }),
+      );
+
+      const confirm: HTMLButtonElement = within(
+        screen.getByRole("group", { name: /^Remove contract\.pdf\?/ }),
+      ).getByRole("button", { name: "Remove" }) as HTMLButtonElement;
+      expect(confirm.disabled).toBe(true);
+      const reasonId: string | null = confirm.getAttribute("aria-describedby");
+      expect(reasonId).not.toBeNull();
+      expect(document.getElementById(reasonId ?? "")?.textContent).toBe(IN_USE);
+      await userEvent.click(confirm);
       expect(given.onRemove).not.toHaveBeenCalled();
     });
 

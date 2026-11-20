@@ -118,9 +118,30 @@ describe("EvidencePanel", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Highlight source 1" }).getAttribute("aria-pressed"),
+      screen
+        .getByRole("button", { name: "Source 1, document deleted" })
+        .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(document.querySelector("[class*='highlighted']")).toBeNull();
+  });
+
+  it("names and draws a deleted source's label as deleted", async () => {
+    const deleted: TurnSource[] = SOURCES.map((item: TurnSource) =>
+      item.label === "S1" ? { ...item, document_id: null, quote: "" } : item,
+    );
+    const onActivate: (label: string) => void = vi.fn();
+    render(
+      <EvidencePanel turn={turn({ sources: deleted })} activeLabel="S2" activationCount={0} onActivate={onActivate} />,
+    );
+
+    const label: HTMLElement = screen.getByRole("button", { name: "Source 1, document deleted" });
+    expect(label.textContent).toBe("[1]");
+    expect(label.className).toMatch(/deleted/);
+    expect(screen.getByRole("button", { name: "Highlight source 2" }).className).not.toMatch(
+      /deleted/,
+    );
+    await userEvent.click(label);
+    expect(onActivate).toHaveBeenCalledExactlyOnceWith("S1");
   });
 
   it("scrolls the highlighted item into view, again for another turn", () => {

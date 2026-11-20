@@ -60,6 +60,10 @@
   text-underline-offset: 3px;
 }
 
+.deletedLabel {
+  color: var(--graphite);
+}
+
 .body {
   min-width: 0;
 }

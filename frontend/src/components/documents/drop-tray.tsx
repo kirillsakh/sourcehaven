@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent, type ReactElement, type RefObject } from "react";
+import { useRef, type ChangeEvent, type ReactElement, type Ref, type RefObject } from "react";
 
 import styles from "@/components/documents/drop-tray.module.css";
 import type { SessionLimits } from "@/lib/api";
@@ -15,11 +15,13 @@ export function DropTray({
   disabled,
   onFiles,
   large = false,
+  chooseRef,
 }: {
   limits: SessionLimits | null;
   disabled: boolean;
   onFiles: (files: File[]) => void;
   large?: boolean;
+  chooseRef?: Ref<HTMLButtonElement>;
 }): ReactElement {
   const input: RefObject<HTMLInputElement | null> = useRef<HTMLInputElement | null>(null);
 
@@ -38,6 +40,7 @@ export function DropTray({
       <p className={styles.hint}>
         or{" "}
         <button
+          ref={chooseRef}
           type="button"
           className={styles.choose}
           disabled={disabled}

@@ -149,7 +149,8 @@ export function DocumentRow({
               <button
                 type="button"
                 className={`${styles.action} ${styles.danger}`}
-                disabled={removing}
+                disabled={removing || disabled}
+                aria-describedby={disabled ? reasonId : undefined}
                 onClick={confirm}
               >
                 Remove
@@ -166,7 +167,7 @@ export function DocumentRow({
             </div>
           </div>
         )}
-        {disabled && !asking && (
+        {disabled && (
           <span id={reasonId} className="visually-hidden">
             {removeDisabledReason}
           </span>

@@ -387,9 +387,120 @@ describe("AppPage", () => {
     ).toBeTruthy();
     expect(within(evidence).queryByText(`“${CONTRACT_QUOTE}”`)).toBeNull();
     expect(evidence.querySelector("[class*='highlighted']")).toBeNull();
-    expect(screen.getByRole("button", { name: "Source 1, document deleted" })).toBeTruthy();
+    expect(
+      within(evidence).getByRole("button", { name: "Source 1, document deleted" }),
+    ).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Source 1, document deleted" })).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Source 2" })).toBeTruthy();
     expect(screen.getByText("A source of this answer was deleted.")).toBeTruthy();
+  });
+
+  it("moves focus to the documents list after a document is removed", async () => {
+    mockedList.mockResolvedValue([
+      readyDocument("1", "employment-contract.pdf"),
+      readyDocument("2", "annex-b.pdf"),
+    ]);
+    mockedDelete.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<AppPage />);
+    await screen.findByText("Answering from 2 of 2 documents");
+
+    await user.click(screen.getByRole("button", { name: "Remove annex-b.pdf" }));
+    await user.click(
+      within(screen.getByRole("group", { name: /^Remove .+\?/ })).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+
+    await waitFor(() => expect(screen.queryByText("annex-b.pdf")).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole("list", { name: "Your documents" }));
+  });
+
+  it("moves focus to choose files after the last document is removed", async () => {
+    mockedList.mockResolvedValue([readyDocument("1", "employment-contract.pdf")]);
+    mockedDelete.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<AppPage />);
+    await screen.findByText("Answering from 1 of 1 document");
+
+    await user.click(screen.getByRole("button", { name: "Remove employment-contract.pdf" }));
+    await user.click(
+      within(screen.getByRole("group", { name: /^Remove .+\?/ })).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+
+    const panel: HTMLElement = screen.getByRole("region", { name: "Your documents" });
+    await waitFor(() => expect(within(panel).queryByText("employment-contract.pdf")).toBeNull());
+    expect(document.activeElement).toBe(
+      within(panel).getByRole("button", { name: "choose files" }),
+    );
+  });
+
+  it("leaves focus where the reader moved it while the removal ran", async () => {
+    mockedList.mockResolvedValue([
+      readyDocument("1", "employment-contract.pdf"),
+      readyDocument("2", "annex-b.pdf"),
+    ]);
+    let finishRemoval: () => void = (): void => undefined;
+    mockedDelete.mockReturnValue(
+      new Promise<void>((resolve: () => void): void => {
+        finishRemoval = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    render(<AppPage />);
+    await screen.findByText("Answering from 2 of 2 documents");
+    await user.click(screen.getByRole("button", { name: "Remove annex-b.pdf" }));
+    await user.click(
+      within(screen.getByRole("group", { name: /^Remove .+\?/ })).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    const question: HTMLElement = screen.getByLabelText("Question");
+    await user.click(question);
+
+    await act(async (): Promise<void> => {
+      finishRemoval();
+    });
+
+    await waitFor(() => expect(screen.queryByText("annex-b.pdf")).toBeNull());
+    expect(document.activeElement).toBe(question);
+  });
+
+  it("clears an in-use refusal once the answer is finished", async () => {
+    mockedList.mockResolvedValue([readyDocument("1", "employment-contract.pdf")]);
+    mockedDelete.mockRejectedValue(new ApiError(409, "document_in_use"));
+    mockedStream.mockReturnValue(
+      events(
+        { type: "delta", text: "Three months [S1]." },
+        {
+          type: "sources",
+          sources: [source("S1", true, "employment-contract.pdf", 4, CONTRACT_QUOTE)],
+          invalidCitationLabels: [],
+        },
+        { type: "done" },
+      ),
+    );
+    const user = userEvent.setup();
+    render(<AppPage />);
+    await screen.findByText("Answering from 1 of 1 document");
+    await user.click(screen.getByRole("button", { name: "Remove employment-contract.pdf" }));
+    await user.click(
+      within(screen.getByRole("group", { name: /^Remove .+\?/ })).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+    const refusal: string =
+      "An answer is still being written from this document. Remove it when the answer is finished.";
+    const panel: HTMLElement = screen.getByRole("region", { name: "Your documents" });
+    expect(await within(panel).findByText(refusal)).toBeTruthy();
+
+    await user.type(screen.getByLabelText("Question"), "How long is the notice period?");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await screen.findByRole("button", { name: "Show evidence" });
+
+    await waitFor(() => expect(within(panel).queryByText(refusal)).toBeNull());
   });
 
   it("replaces the columns with an alert when the session cannot start", async () => {

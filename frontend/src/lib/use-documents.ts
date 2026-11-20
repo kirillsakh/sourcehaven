@@ -9,7 +9,7 @@ import {
   type SessionLimits,
 } from "@/lib/api";
 import { newRequestId } from "@/lib/format";
-import { describeError } from "@/lib/messages";
+import { describeError, DOCUMENT_IN_USE_TEXT } from "@/lib/messages";
 import { checkFiles } from "@/lib/upload-checks";
 
 const POLL_INTERVAL_MS = 2000;
@@ -39,6 +39,13 @@ interface UploadJob {
   file: File;
 }
 
+function withoutInUseErrors(errors: ReadonlyMap<string, string>): ReadonlyMap<string, string> {
+  const kept: [string, string][] = [...errors].filter(
+    ([, text]: [string, string]): boolean => text !== DOCUMENT_IN_USE_TEXT,
+  );
+  return kept.length === errors.size ? errors : new Map(kept);
+}
+
 function isActive(document: DocumentInfo): boolean {
   return document.state === "queued" || document.state === "processing";
 }
@@ -49,8 +56,13 @@ function isActive(document: DocumentInfo): boolean {
  *
  * Args:
  *   limits: Session limits; nothing is requested until they are known.
+ *   answering: Whether an answer is being written. When it stops, removal failures that said a
+ *     document was in use are cleared, since they no longer apply.
  */
-export function useDocuments(limits: SessionLimits | null): DocumentsState {
+export function useDocuments(
+  limits: SessionLimits | null,
+  answering: boolean = false,
+): DocumentsState {
   const [documents, setDocuments] = useState<DocumentInfo[]>([]);
   const [uploads, setUploads] = useState<UploadRow[]>([]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -58,6 +70,14 @@ export function useDocuments(limits: SessionLimits | null): DocumentsState {
 
   const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
   const [removeErrors, setRemoveErrors] = useState<ReadonlyMap<string, string>>(new Map());
+  const [wasAnswering, setWasAnswering] = useState<boolean>(answering);
+
+  if (answering !== wasAnswering) {
+    setWasAnswering(answering);
+    if (!answering) {
+      setRemoveErrors(withoutInUseErrors);
+    }
+  }
 
   const knownReady = useRef<Set<string>>(new Set());
   // Read synchronously, so two calls in the same tick cannot both pass the guard.
