@@ -121,7 +121,7 @@ This is a development milestone; the production deployment is not ready.
 
 - No Turnstile or other human verification (the dev stack sets it to `disabled`), no rate limits,
   admission queue or spending cap. Only size, page and document-count limits apply.
-- No "end session" and no expiry sweeper yet, so uploaded data stays stored until you remove it,
+- No "end session" and no expiry sweeper yet, so uploaded data stays stored until it is removed,
   even after the session expires.
 - No document or collection summaries, no follow-up history, no stop/cancel endpoint and no
   idempotent replay of a repeated request.
