@@ -645,6 +645,26 @@ A separate set of opt-in runs that call the real API and cost money:
 
 An LLM judge alone is not accepted as proof of quality [R]. Each run's estimated cost (well under $1 at current prices) is printed before it starts, and it requires `--live`.
 
+### 8.5 Splitting strategy and quote selection (added 2026-11-20, owner request)
+
+Splitting decides what retrieval can find and how precise a citation's quote can be. The current
+splitter makes passages of about 400 tokens with 60 tokens of overlap, preferring paragraph, line
+and sentence boundaries; a short document becomes a single passage, and a citation quotes the first
+300 characters of its passage, which can miss the supporting text (seen with the one-page demo CV).
+
+- **Candidates, run through the same harness and corpus as §8.2:** the current splitter; smaller
+  passages (about 150–250 tokens); structure-aware splitting on headings and lists where the parser
+  recovers them; sentence-window retrieval (retrieve a sentence, send its neighbours to the model);
+  semantic splitting at topic shifts, if its ingestion cost is acceptable.
+- **Quote selection:** choose the quoted sentences by similarity to the question (and, for cited
+  answers, to the citing sentence) instead of the passage start. Measured independently of the
+  splitter, since it applies to any of them.
+- **Metrics:** Recall@8 and MRR@10 against the gold passages; quote precision (does the stored quote
+  contain the gold span); answer support and citation accuracy from §8.4 for the two best
+  candidates; ingestion time and stored passages per page.
+- **Decision:** a decision record per change. Changing the splitter changes `chunker_fingerprint`,
+  which triggers re-ingestion (§6.2).
+
 ---
 
 ## 9. Limits, admission and spending (agreed values)
@@ -1016,8 +1036,10 @@ Each milestone is a set of atomic commits with tests and documentation.
    - Two-visitor isolation tests from day one.
 3. **M2 — Measurement**
    - English evaluation corpus and the embedding and parser benchmark.
+   - Splitting-strategy comparison (§8.5) and quote selection for citations (owner request,
+     2026-11-20).
    - Decision records; threshold calibration.
-   - Switch the default model or parser if the results say so.
+   - Switch the default model, parser or splitting strategy if the results say so.
 4. **M3 — Robustness and limits**
    - Full error taxonomy with the fixtures.
    - Child-process parsing limits, retries and leases.
