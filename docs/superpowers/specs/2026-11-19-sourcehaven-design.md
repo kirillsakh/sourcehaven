@@ -1028,7 +1028,8 @@ Each milestone is a set of atomic commits with tests and documentation.
    - Caching, progress events, page-range citations.
 6. **M5 — Lifecycle**
    - Follow-ups with history budget; turns with a source whose `document_id` is null are excluded from the history (§7.1).
-   - Deletion, end session, expiry sweeper, orphan cleanup.
+   - End session, expiry sweeper, orphan cleanup (document deletion delivered early; see
+     `2026-11-20-document-removal-design.md`).
    - Restart tests.
 7. **M6 — Product UI and public pages**
    - Full app screen. Its foundation (visual system, layout, drag-and-drop upload, evidence panel)

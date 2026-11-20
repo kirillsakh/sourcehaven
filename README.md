@@ -121,8 +121,8 @@ This is a development milestone; the production deployment is not ready.
 
 - No Turnstile or other human verification (the dev stack sets it to `disabled`), no rate limits,
   admission queue or spending cap. Only size, page and document-count limits apply.
-- No deletion of documents, no "end session", no expiry sweeper, so uploaded data stays until removed
-  by hand.
+- No "end session" and no expiry sweeper yet, so uploaded data stays stored until you remove it,
+  even after the session expires.
 - No document or collection summaries, no follow-up history, no stop/cancel endpoint and no
   idempotent replay of a repeated request.
 - Parsing runs in the worker process without child-process resource limits; only PDFs with a text
