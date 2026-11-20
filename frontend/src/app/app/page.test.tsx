@@ -204,9 +204,30 @@ describe("AppPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Source 2" }));
 
-    expect(annexQuote.className).toMatch(/highlighted/);
-    expect(contractQuote.className).not.toMatch(/highlighted/);
+    // Each activation re-creates the quote marks to replay the sweep, so they are looked up again.
+    expect(within(evidence).getByText(`“${ANNEX_QUOTE}”`).className).toMatch(/highlighted/);
+    expect(within(evidence).getByText(`“${CONTRACT_QUOTE}”`).className).not.toMatch(/highlighted/);
     expect(mockedStream.mock.calls[0][1]).toMatchObject({ documentIds: ["1", "2"] });
+  });
+
+  it("scrolls to the evidence again when the same citation is clicked twice", async () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    try {
+      const user = userEvent.setup();
+      await askWithCitations(user);
+      await user.click(screen.getByRole("button", { name: "Source 2" }));
+      const afterFirst: number = scrollIntoView.mock.calls.length;
+
+      await user.click(screen.getByRole("button", { name: "Source 2" }));
+
+      expect(scrollIntoView.mock.calls.length).toBe(afterFirst + 1);
+    } finally {
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    }
   });
 
   it("moves focus to the first document checkbox from the scope line", async () => {

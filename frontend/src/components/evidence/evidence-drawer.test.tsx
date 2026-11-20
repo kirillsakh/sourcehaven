@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EvidenceDrawer } from "@/components/evidence/evidence-drawer";
+import { EvidenceItem } from "@/components/evidence/evidence-item";
+import type { TurnSource } from "@/lib/api";
 
 // jsdom does not implement the modal dialog methods.
 const showModal = vi.fn(function (this: HTMLDialogElement): void {
@@ -81,6 +83,54 @@ describe("EvidenceDrawer", () => {
 
     await user.click(screen.getByRole("dialog", { name: "Evidence" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a text selection that starts in the sheet and ends on the backdrop", () => {
+    const onClose = vi.fn();
+    renderDrawer(true, onClose);
+
+    fireEvent.pointerDown(screen.getByText("Evidence content"));
+    fireEvent.click(screen.getByRole("dialog", { name: "Evidence" }));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("opens the dialog before the highlighted evidence scrolls into view", () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const source: TurnSource = {
+      label: "S2",
+      cited: true,
+      document_id: "d2",
+      document_name: "annex-b.pdf",
+      pages: { start: 2, end: 2 },
+      quote: "The notice period may be reduced.",
+    };
+    try {
+      const { rerender } = render(
+        <EvidenceDrawer open={false} onClose={vi.fn()}>
+          {null}
+        </EvidenceDrawer>,
+      );
+
+      rerender(
+        <EvidenceDrawer open onClose={vi.fn()}>
+          <ul>
+            <EvidenceItem source={source} active activation={0} onActivate={vi.fn()} />
+          </ul>
+        </EvidenceDrawer>,
+      );
+
+      expect(scrollIntoView).toHaveBeenCalledTimes(1);
+      expect(showModal.mock.invocationCallOrder[0]).toBeLessThan(
+        scrollIntoView.mock.invocationCallOrder[0],
+      );
+    } finally {
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    }
   });
 
   it("reports a close when the browser closes the dialog, as Escape does", () => {

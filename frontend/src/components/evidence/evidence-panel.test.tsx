@@ -60,7 +60,7 @@ afterEach(() => {
 
 describe("EvidencePanel", () => {
   it("lists cited sources in label order with their document and page", () => {
-    render(<EvidencePanel turn={turn()} activeLabel={null} onActivate={vi.fn()} />);
+    render(<EvidencePanel turn={turn()} activeLabel={null} activationCount={0} onActivate={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Evidence" })).toBeTruthy();
     expect(screen.getByText("For “How long is the notice period?”")).toBeTruthy();
@@ -75,14 +75,14 @@ describe("EvidencePanel", () => {
   });
 
   it("highlights the quote of the active citation", () => {
-    render(<EvidencePanel turn={turn()} activeLabel="S2" onActivate={vi.fn()} />);
+    render(<EvidencePanel turn={turn()} activeLabel="S2" activationCount={0} onActivate={vi.fn()} />);
 
     expect(quote(ANNEX_QUOTE).className).toMatch(/highlighted/);
     expect(quote(CONTRACT_QUOTE).className).not.toMatch(/highlighted/);
   });
 
   it("highlights the first cited source when no citation was chosen", () => {
-    render(<EvidencePanel turn={turn()} activeLabel={null} onActivate={vi.fn()} />);
+    render(<EvidencePanel turn={turn()} activeLabel={null} activationCount={0} onActivate={vi.fn()} />);
 
     expect(quote(CONTRACT_QUOTE).className).toMatch(/highlighted/);
     expect(quote(ANNEX_QUOTE).className).not.toMatch(/highlighted/);
@@ -96,13 +96,38 @@ describe("EvidencePanel", () => {
     });
     try {
       const { rerender } = render(
-        <EvidencePanel turn={turn()} activeLabel="S2" onActivate={vi.fn()} />,
+        <EvidencePanel turn={turn()} activeLabel="S2" activationCount={0} onActivate={vi.fn()} />,
       );
       expect(scrollIntoView).toHaveBeenCalledTimes(1);
       expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest" });
 
-      rerender(<EvidencePanel turn={turn({ key: "t2" })} activeLabel="S2" onActivate={vi.fn()} />);
+      rerender(<EvidencePanel turn={turn({ key: "t2" })} activeLabel="S2" activationCount={0} onActivate={vi.fn()} />);
       expect(scrollIntoView).toHaveBeenCalledTimes(2);
+    } finally {
+      Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    }
+  });
+
+  it("replays the highlight and the scroll when the same source is activated again", () => {
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    try {
+      const { rerender } = render(
+        <EvidencePanel turn={turn()} activeLabel="S2" activationCount={1} onActivate={vi.fn()} />,
+      );
+      const first: HTMLElement = quote(ANNEX_QUOTE);
+
+      rerender(
+        <EvidencePanel turn={turn()} activeLabel="S2" activationCount={2} onActivate={vi.fn()} />,
+      );
+
+      expect(scrollIntoView).toHaveBeenCalledTimes(2);
+      // A new mark element restarts the sweep animation.
+      expect(quote(ANNEX_QUOTE)).not.toBe(first);
+      expect(quote(ANNEX_QUOTE).className).toMatch(/highlighted/);
     } finally {
       Reflect.deleteProperty(Element.prototype, "scrollIntoView");
     }
@@ -110,7 +135,7 @@ describe("EvidencePanel", () => {
 
   it("activates a source by its label", async () => {
     const onActivate = vi.fn();
-    render(<EvidencePanel turn={turn()} activeLabel={null} onActivate={onActivate} />);
+    render(<EvidencePanel turn={turn()} activeLabel={null} activationCount={0} onActivate={onActivate} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Highlight source 2" }));
 
@@ -118,7 +143,7 @@ describe("EvidencePanel", () => {
   });
 
   it("collects uncited passages in a closed disclosure", () => {
-    render(<EvidencePanel turn={turn()} activeLabel={null} onActivate={vi.fn()} />);
+    render(<EvidencePanel turn={turn()} activeLabel={null} activationCount={0} onActivate={vi.fn()} />);
 
     const summary: HTMLElement = screen.getByText("2 more passages were read but not cited");
     const details: HTMLDetailsElement | null = summary.closest("details");
@@ -131,6 +156,7 @@ describe("EvidencePanel", () => {
       <EvidencePanel
         turn={turn({ sources: SOURCES.filter((item) => item.label !== "S4") })}
         activeLabel={null}
+        activationCount={0}
         onActivate={vi.fn()}
       />,
     );
@@ -139,7 +165,7 @@ describe("EvidencePanel", () => {
   });
 
   it("explains where evidence appears before any question", () => {
-    render(<EvidencePanel turn={null} activeLabel={null} onActivate={vi.fn()} />);
+    render(<EvidencePanel turn={null} activeLabel={null} activationCount={0} onActivate={vi.fn()} />);
 
     expect(screen.getByText("Evidence for each answer appears here.")).toBeTruthy();
   });
@@ -149,6 +175,7 @@ describe("EvidencePanel", () => {
       <EvidencePanel
         turn={turn({ status: "generating", sources: [] })}
         activeLabel={null}
+        activationCount={0}
         onActivate={vi.fn()}
       />,
     );
@@ -158,7 +185,7 @@ describe("EvidencePanel", () => {
 
   it.each(["interrupted", "failed"])("shows no evidence for a %s answer", (status: string) => {
     render(
-      <EvidencePanel turn={turn({ status, sources: [] })} activeLabel={null} onActivate={vi.fn()} />,
+      <EvidencePanel turn={turn({ status, sources: [] })} activeLabel={null} activationCount={0} onActivate={vi.fn()} />,
     );
 
     expect(screen.getByText("No evidence for an incomplete answer.")).toBeTruthy();
@@ -169,6 +196,7 @@ describe("EvidencePanel", () => {
       <EvidencePanel
         turn={turn({ sources: SOURCES.filter((item) => !item.cited) })}
         activeLabel={null}
+        activationCount={0}
         onActivate={vi.fn()}
       />,
     );

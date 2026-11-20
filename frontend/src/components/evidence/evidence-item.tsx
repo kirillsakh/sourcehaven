@@ -5,13 +5,21 @@ import type { TurnSource } from "@/lib/api";
 import { displayLabel } from "@/lib/citations";
 import { formatPages } from "@/lib/format";
 
+/**
+ * Show one passage with its document and pages, highlighted while it is the active source.
+ *
+ * Every new `activation` number scrolls an active item into view again and replays the
+ * highlighter sweep, so clicking the same citation twice is not a silent no-op.
+ */
 export function EvidenceItem({
   source,
   active,
+  activation,
   onActivate,
 }: {
   source: TurnSource;
   active: boolean;
+  activation: number;
   onActivate: (label: string) => void;
 }): ReactElement {
   const item: RefObject<HTMLLIElement | null> = useRef<HTMLLIElement | null>(null);
@@ -23,7 +31,7 @@ export function EvidenceItem({
     if (active && element !== null && typeof element.scrollIntoView === "function") {
       element.scrollIntoView({ block: "nearest" });
     }
-  }, [active]);
+  }, [active, activation]);
 
   return (
     <li ref={item} className={styles.item}>
@@ -42,7 +50,7 @@ export function EvidenceItem({
           {formatPages(source.pages.start, source.pages.end)}
         </p>
         <blockquote className={styles.quote}>
-          <span className={active ? `${styles.mark} ${styles.highlighted}` : styles.mark}>
+          <span key={activation} className={active ? styles.highlighted : undefined}>
             &ldquo;{source.quote}&rdquo;
           </span>
         </blockquote>

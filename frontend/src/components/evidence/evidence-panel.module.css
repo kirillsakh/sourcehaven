@@ -87,16 +87,24 @@
 /*
  * The highlighter sweeps left to right by growing background-size. Only an image can be sized,
  * so the colour is drawn as a gradient with a hard stop: the lower half of each line, like a pen.
+ * The item re-creates this element on every activation, which restarts the animation; with
+ * reduced motion the global rule removes it and the highlight is simply there.
  */
-.mark {
+.highlighted {
   background-image: linear-gradient(transparent 50%, var(--highlighter) 50%);
   background-repeat: no-repeat;
-  background-size: 0% 100%;
-  transition: background-size 350ms ease;
+  background-size: 100% 100%;
+  animation: sweep 350ms ease;
 }
 
-.highlighted {
-  background-size: 100% 100%;
+@keyframes sweep {
+  from {
+    background-size: 0% 100%;
+  }
+
+  to {
+    background-size: 100% 100%;
+  }
 }
 
 .uncited {

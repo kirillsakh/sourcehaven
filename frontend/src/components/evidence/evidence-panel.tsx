@@ -37,10 +37,12 @@ function stateText(turn: TurnViewModel | null): string | null {
 function Sources({
   turn,
   activeLabel,
+  activationCount,
   onActivate,
 }: {
   turn: TurnViewModel;
   activeLabel: string | null;
+  activationCount: number;
   onActivate: (label: string) => void;
 }): ReactElement {
   const cited: TurnSource[] = byLabel(turn.sources.filter((source: TurnSource) => source.cited));
@@ -55,6 +57,7 @@ function Sources({
         key={source.label}
         source={source}
         active={source.label === highlighted}
+        activation={activationCount}
         onActivate={onActivate}
       />
     );
@@ -85,15 +88,17 @@ function Sources({
  * Show the passages behind the active turn's answer.
  *
  * The quote of `activeLabel` is highlighted and scrolled into view; without a chosen citation the
- * first cited source is.
+ * first cited source is. A new `activationCount` replays the highlight and the scroll.
  */
 export function EvidencePanel({
   turn,
   activeLabel,
+  activationCount,
   onActivate,
 }: {
   turn: TurnViewModel | null;
   activeLabel: string | null;
+  activationCount: number;
   onActivate: (label: string) => void;
 }): ReactElement {
   const headingId: string = useId();
@@ -114,7 +119,13 @@ export function EvidencePanel({
       ) : (
         // Keyed by turn so switching turns scrolls to the new highlight instead of keeping the old
         // turn's items, which share labels such as S1.
-        <Sources key={turn.key} turn={turn} activeLabel={activeLabel} onActivate={onActivate} />
+        <Sources
+          key={turn.key}
+          turn={turn}
+          activeLabel={activeLabel}
+          activationCount={activationCount}
+          onActivate={onActivate}
+        />
       )}
     </section>
   );

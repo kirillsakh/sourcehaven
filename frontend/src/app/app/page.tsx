@@ -167,6 +167,7 @@ export default function AppPage(): ReactElement {
           <EvidencePanel
             turn={activeTurn}
             activeLabel={conversation.activeLabel}
+            activationCount={conversation.activationCount}
             onActivate={activateEvidence}
           />
         </div>
@@ -176,6 +177,7 @@ export default function AppPage(): ReactElement {
           <EvidencePanel
             turn={activeTurn}
             activeLabel={conversation.activeLabel}
+            activationCount={conversation.activationCount}
             onActivate={activateEvidence}
           />
         )}

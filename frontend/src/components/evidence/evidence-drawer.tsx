@@ -1,7 +1,8 @@
 import {
-  useEffect,
+  useLayoutEffect,
   useRef,
   type MouseEvent,
+  type PointerEvent,
   type ReactElement,
   type ReactNode,
   type RefObject,
@@ -25,8 +26,11 @@ export function EvidenceDrawer({
   children: ReactNode;
 }): ReactElement {
   const dialog: RefObject<HTMLDialogElement | null> = useRef<HTMLDialogElement | null>(null);
+  const pressedOnBackdrop: RefObject<boolean> = useRef<boolean>(false);
 
-  useEffect(() => {
+  // A layout effect runs before the children's passive effects, so the dialog is already showing
+  // when the highlighted evidence item scrolls itself into view.
+  useLayoutEffect(() => {
     const element: HTMLDialogElement | null = dialog.current;
     if (element === null) {
       return;
@@ -44,9 +48,13 @@ export function EvidenceDrawer({
       className={styles.drawer}
       aria-label="Evidence"
       onClose={onClose}
+      onPointerDown={(event: PointerEvent<HTMLDialogElement>): void => {
+        pressedOnBackdrop.current = event.target === event.currentTarget;
+      }}
       onClick={(event: MouseEvent<HTMLDialogElement>): void => {
         // The sheet fills the dialog, so a click that targets the dialog itself hit the backdrop.
-        if (event.target === event.currentTarget) {
+        // A text selection dragged out of the sheet also ends there; it started on the sheet.
+        if (event.target === event.currentTarget && pressedOnBackdrop.current) {
           onClose();
         }
       }}

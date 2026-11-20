@@ -39,6 +39,8 @@ export interface ConversationState {
   stop: () => void;
   activeTurnKey: string | null;
   activeLabel: string | null;
+  /** Grows with every `activate` call, so repeating the same citation can replay its highlight. */
+  activationCount: number;
   activate: (turnKey: string, label?: string) => void;
 }
 
@@ -128,6 +130,7 @@ export function useConversation(limits: SessionLimits | null): ConversationState
   const [askError, setAskError] = useState<string | null>(null);
   const [generating, setGenerating] = useState<boolean>(false);
   const [active, setActive] = useState<ActiveTurn>(NO_ACTIVE_TURN);
+  const [activationCount, setActivationCount] = useState<number>(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const conversationRef = useRef<string | null>(null);
@@ -261,6 +264,7 @@ export function useConversation(limits: SessionLimits | null): ConversationState
 
   const activate = useCallback((turnKey: string, label?: string): void => {
     setActive({ key: turnKey, label: label ?? null });
+    setActivationCount((count: number): number => count + 1);
   }, []);
 
   return {
@@ -273,6 +277,7 @@ export function useConversation(limits: SessionLimits | null): ConversationState
     stop,
     activeTurnKey: active.key,
     activeLabel: active.label,
+    activationCount,
     activate,
   };
 }

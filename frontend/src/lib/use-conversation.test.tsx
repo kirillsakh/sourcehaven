@@ -154,6 +154,21 @@ describe("useConversation", () => {
     expect(result.current.activeLabel).toBe("S2");
   });
 
+  it("counts every activation, including a repeat of the same citation", () => {
+    const { result } = mount();
+    expect(result.current.activationCount).toBe(0);
+
+    act(() => {
+      result.current.activate("t1", "S1");
+    });
+    act(() => {
+      result.current.activate("t1", "S1");
+    });
+
+    expect(result.current.activeLabel).toBe("S1");
+    expect(result.current.activationCount).toBe(2);
+  });
+
   it("does not take over the label when sources arrive for a turn that is no longer active", async () => {
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => {
