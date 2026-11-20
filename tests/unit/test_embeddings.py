@@ -110,6 +110,27 @@ async def test_tei_embedder_batches_and_prefixes() -> None:
     assert seen[-1]["inputs"] == ["query: q"]
 
 
+async def test_tei_embedder_batches_queries_with_the_query_prefix() -> None:
+    seen: list[TeiRequest] = []
+    embedder: TeiEmbedder = TeiEmbedder(
+        httpx.AsyncClient(transport=tei_mock(seen, dimensions=3), base_url="http://tei"),
+        make_config(dimensions=3),
+        batch_size=2,
+    )
+    vectors: list[list[float]] = await embedder.embed_queries(["a", "b", "c"])
+    assert len(vectors) == 3
+    assert [r["inputs"] for r in seen] == [["query: a", "query: b"], ["query: c"]]
+    assert await embedder.embed_queries([]) == [] and len(seen) == 2
+
+
+async def test_hash_embedder_embeds_queries_like_single_queries() -> None:
+    embedder: HashEmbedder = HashEmbedder()
+    assert await embedder.embed_queries(["warranty period", "support"]) == [
+        await embedder.embed_query("warranty period"),
+        await embedder.embed_query("support"),
+    ]
+
+
 async def test_tei_embedder_returns_nothing_for_no_documents() -> None:
     seen: list[TeiRequest] = []
     transport: httpx.MockTransport = tei_mock(seen, dimensions=3)

@@ -184,6 +184,9 @@ class ReclaimingEmbedder:
     async def embed_query(self, text: str) -> list[float]:
         return await self._inner.embed_query(text)
 
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        return await self._inner.embed_queries(texts)
+
     async def check_ready(self) -> None:
         await self._inner.check_ready()
 

@@ -103,6 +103,9 @@ class NotReadyEmbedder:
     async def embed_query(self, text: str) -> list[float]:
         raise EmbedderNotReady("not ready")
 
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        raise EmbedderNotReady("not ready")
+
     async def check_ready(self) -> None:
         raise EmbedderNotReady("serves a different model")
 
@@ -123,6 +126,9 @@ class FailingEmbedder:
     async def embed_query(self, text: str) -> list[float]:
         raise IngestionError("embedding_unavailable", retryable=True)
 
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        raise IngestionError("embedding_unavailable", retryable=True)
+
     async def check_ready(self) -> None:
         return None
 
@@ -131,4 +137,7 @@ class QueryFailingEmbedder(HashEmbedder):
     """Embeds documents like `HashEmbedder` but fails every query, as during an outage."""
 
     async def embed_query(self, text: str) -> list[float]:
+        raise EmbedderUnavailable()
+
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
         raise EmbedderUnavailable()

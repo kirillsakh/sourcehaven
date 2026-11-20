@@ -56,7 +56,11 @@ class TeiEmbedder:
 
     async def embed_query(self, text: str) -> list[float]:
         """Embed one query text; raises like `embed_documents`."""
-        return (await self._embed([text], self._config.query_prefix))[0]
+        return (await self.embed_queries([text]))[0]
+
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        """Embed query texts in batches; raises like `embed_documents`."""
+        return await self._embed(texts, self._config.query_prefix)
 
     async def check_ready(self) -> None:
         """Verify the server is reachable and serves the configured model and revision.

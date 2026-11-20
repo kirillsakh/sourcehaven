@@ -63,6 +63,9 @@ class HashEmbedder:
     async def embed_query(self, text: str) -> list[float]:
         return self._embed(text)
 
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        return [self._embed(text) for text in texts]
+
     async def check_ready(self) -> None:
         return None
 

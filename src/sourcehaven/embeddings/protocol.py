@@ -28,6 +28,8 @@ class Embedder(Protocol):
 
     async def embed_query(self, text: str) -> list[float]: ...
 
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]: ...
+
     async def check_ready(self) -> None:
         """Return when the embedder can serve requests.
 
