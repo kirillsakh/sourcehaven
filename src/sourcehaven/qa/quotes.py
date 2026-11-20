@@ -195,8 +195,15 @@ def _render(passage: str, sentences: Sequence[Sentence], kept: Sequence[int]) ->
 
 
 def _between(passage: str, before: Sentence, after: Sentence) -> str:
-    """The whitespace between neighbouring sentences, without dropped pieces such as bullets."""
-    return "".join(c for c in passage[before.end : after.start] if c.isspace()) or " "
+    """The whitespace between neighbouring sentences, without dropped bullet glyphs.
+
+    Dropped pieces with letters or digits (dates, numbers) are content, so their omission is
+    marked with an ellipsis instead.
+    """
+    skipped: str = passage[before.end : after.start]
+    if any(character.isalnum() for character in skipped):
+        return _GAP
+    return "".join(character for character in skipped if character.isspace()) or " "
 
 
 def _cut(sentences: Sequence[Sentence], index: int, limit: int) -> str:

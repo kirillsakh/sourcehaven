@@ -292,3 +292,9 @@ def test_a_short_heading_after_a_long_line_starts_a_new_sentence() -> None:
         "Summary",
         "Backend engineer with 8 years of Python, focused on search and data pipelines, and APIs.",
     ]
+
+
+def test_skipped_dates_between_neighbouring_sentences_are_marked_with_an_ellipsis() -> None:
+    passage: str = "Senior Engineer\n2019 - 2023\nLed the migration."
+    sentences: list[Sentence] = split_passage_sentences(passage)
+    assert assemble_quote(passage, sentences, [0, 1]) == "Senior Engineer … Led the migration."
