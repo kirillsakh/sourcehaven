@@ -2,7 +2,7 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Final, Literal
 from uuid import UUID, uuid7
@@ -32,6 +32,7 @@ from sourcehaven.qa.events import (
     TurnEvent,
     TurnStarted,
 )
+from sourcehaven.qa.quotes import select_quotes
 from sourcehaven.retrieval.search import search_evidence, select_evidence
 from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.repositories.conversations import (
@@ -280,7 +281,9 @@ class QAService:
         try:
             yield TurnStarted(turn.turn_id)
             yield Progress("retrieving")
-            evidence: list[Evidence] = await self._retrieve(turn)
+            question_vector: list[float]
+            evidence: list[Evidence]
+            question_vector, evidence = await self._retrieve(turn)
             if not evidence:
                 parts.append(NO_EVIDENCE_ANSWER)
                 yield Delta(NO_EVIDENCE_ANSWER)
@@ -356,7 +359,9 @@ class QAService:
                 )
                 yield unfinished
                 return
-            result: CitationResult = validate_citations(text, labelled)
+            result: CitationResult = await self._with_selected_quotes(
+                turn, text, validate_citations(text, labelled), question_vector
+            )
             await self._finish(
                 turn,
                 TurnOutcome(
@@ -397,7 +402,29 @@ class QAService:
             if not ended:
                 await self._store_interrupted(turn, "".join(parts), _unvalidated(supplied))
 
-    async def _retrieve(self, turn: _StartedTurn) -> list[Evidence]:
+    async def _with_selected_quotes(
+        self,
+        turn: _StartedTurn,
+        text: str,
+        result: CitationResult,
+        question_vector: list[float],
+    ) -> CitationResult:
+        try:
+            sources: list[Citation] = await select_quotes(
+                text,
+                result.sources,
+                question_vector=question_vector,
+                embedder=self._container.embedder,
+            )
+        except Exception as error:
+            # Quotes are a convenience: the answer completes with passage-start quotes instead.
+            logger.warning(
+                "turn %s kept passage-start quotes: %s", turn.turn_id, type(error).__name__
+            )
+            return result
+        return replace(result, sources=sources)
+
+    async def _retrieve(self, turn: _StartedTurn) -> tuple[list[float], list[Evidence]]:
         query_vector: list[float] = await self._container.embedder.embed_query(turn.question)
         async with owner_session(self._container.sessions, turn.owner) as session:
             candidates: list[Evidence] = await search_evidence(
@@ -407,7 +434,9 @@ class QAService:
                 query_vector=query_vector,
                 embedding_config_id=self._container.embedding_config_id,
             )
-        return select_evidence(candidates, threshold=self._container.settings.evidence_threshold)
+        return query_vector, select_evidence(
+            candidates, threshold=self._container.settings.evidence_threshold
+        )
 
     def _now(self) -> datetime:
         return self._container.clock()

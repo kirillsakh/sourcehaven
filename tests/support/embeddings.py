@@ -154,3 +154,31 @@ class SlowEmbedder(HashEmbedder):
     async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
         await asyncio.sleep(self._delay_seconds)
         return await super().embed_documents(texts)
+
+
+class QuoteFailingEmbedder(HashEmbedder):
+    """Embeds like `HashEmbedder` but fails batched queries, which only quote selection makes."""
+
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        raise EmbedderUnavailable()
+
+
+class CountingEmbedder(HashEmbedder):
+    """Embeds like `HashEmbedder` and counts batched query and document calls."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.query_batches: int = 0
+        self.document_batches: int = 0
+
+    def reset(self) -> None:
+        self.query_batches = 0
+        self.document_batches = 0
+
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        self.document_batches += 1
+        return await super().embed_documents(texts)
+
+    async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
+        self.query_batches += 1
+        return await super().embed_queries(texts)

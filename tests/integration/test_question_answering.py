@@ -13,7 +13,11 @@ from sourcehaven.generation.fake import ScriptedChatModel
 from sourcehaven.qa import service as qa_service
 from sourcehaven.qa.service import QAService, TurnStream
 from sourcehaven.storage.repositories.conversations import NewTurn, add_generating_turn
-from tests.support.embeddings import QueryFailingEmbedder
+from tests.support.embeddings import (
+    CountingEmbedder,
+    QueryFailingEmbedder,
+    QuoteFailingEmbedder,
+)
 from tests.support.streaming import SseEvent
 from tests.support.visitors import ReadyVisitorFactory, StoredTurn, TwoReadyVisitors, Visitor
 from tests.support.waiting import eventually
@@ -433,3 +437,45 @@ async def test_insert_collision_with_an_ended_turn_is_retried(
     monkeypatch.setattr(qa_service, "add_generating_turn", collide_once)
     events: list[SseEvent] = await visitor.ask("warranty?", [doc])
     assert events[-1].name == "done" and len(attempts) == 2
+
+
+async def test_quote_shows_the_supporting_sentence_not_the_passage_start(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    model: ScriptedChatModel = ScriptedChatModel(
+        script=["Support requests are answered within 3 business days [S1]."]
+    )
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model)
+    )
+    events: list[SseEvent] = await visitor.ask("How fast is support?", [doc])
+    quote: str = events[-2].data["sources"][0]["quote"]
+    assert quote.startswith("…") and "within 3 business days." in quote
+    assert "warranty" not in quote
+    assert (await visitor.last_turn())["sources"][0]["quote"] == quote
+
+
+async def test_quote_selection_failure_keeps_the_passage_start_and_completes(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    model: ScriptedChatModel = ScriptedChatModel(script=["The warranty is 24 months [S1]."])
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf",
+        overrides=ContainerOverrides(chat_model=model, embedder=QuoteFailingEmbedder()),
+    )
+    events: list[SseEvent] = await visitor.ask("How long is the warranty period?", [doc])
+    assert events[-1].name == "done" and events[-1].data["status"] == "complete"
+    assert events[-2].data["sources"][0]["quote"].startswith("The Sourcehaven warranty")
+
+
+async def test_failed_answer_makes_no_quote_selection_call(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    embedder: CountingEmbedder = CountingEmbedder()
+    model: ScriptedChatModel = ScriptedChatModel(script=["Partial [S1] ", "more"], fail_after=1)
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model, embedder=embedder)
+    )
+    embedder.reset()
+    await visitor.ask("warranty?", [doc])
+    assert embedder.query_batches == 0 and embedder.document_batches == 0

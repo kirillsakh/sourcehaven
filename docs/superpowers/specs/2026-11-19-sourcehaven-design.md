@@ -577,7 +577,7 @@ documents and returned an empty or cut-off answer. The output budget is therefor
 - **Labels:** the passages supplied to the model are labelled `S1…Sn`.
 - **Validation:** when generation completes:
   1. Parse the `[S#]` labels in the text.
-  2. Keep those matching a supplied label. They become `turn_sources` with `cited = true`, holding the document name snapshot, page range and a quote snapshot of up to 300 characters.
+  2. Keep those matching a supplied label. They become `turn_sources` with `cited = true`, holding the document name snapshot, page range and a quote snapshot of up to 300 characters. The quote holds the passage sentences that best support the citing answer sentences (the question, for uncited passages), with the passage start as the fallback; see `2026-11-20-quote-selection-design.md`.
   3. Note unknown labels as `invalid_citation_labels` in the `done` event. The UI shows "Some citation markers could not be matched to sources" and renders those markers as plain text.
   4. Store supplied but uncited passages with `cited = false`. The UI shows them collapsed under "Other passages consulted", clearly separated.
   5. If an answer has no valid citation at all, it is marked in the UI as "No sources cited; treat with caution".
