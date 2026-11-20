@@ -73,7 +73,14 @@ and must not wait on another TEI call.
 - **Passage sentences:** each supplied passage split on line breaks and on sentence-ending
   punctuation (`. ! ? …` followed by whitespace). Line breaks count because CV bullets and list items
   have no full stop. Each sentence is an exact substring of the passage, with its offsets kept.
-  Blank and punctuation-only pieces are dropped.
+  Pieces without a letter (blank lines, bullet glyphs, list numbers) are dropped.
+- **Wrapped lines** [A, changed 2026-11-20 after measuring the demo documents]: extracted PDF text
+  has a line break at every printed line, so splitting at every line break produced fragments such
+  as "Recently" or "40%.". A line break is therefore not a boundary when the line does not end with
+  sentence punctuation and the next line starts with a lowercase letter, or starts with a letter or
+  digit after a line at least 70% as long as the passage's longest line. Answer text keeps every
+  line break as a boundary, since the model does not wrap lines. A joined sentence keeps its line
+  breaks (the evidence panel renders them as spaces).
 - **Citing sentences:** the answer sentences that contain a source's `[S#]` label, with all `[S#]`
   markers and Markdown emphasis/list/heading syntax removed. A sentence citing several sources is a
   citing sentence for each.

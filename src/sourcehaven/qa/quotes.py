@@ -13,7 +13,11 @@ QUOTE_SELECTION_TIMEOUT_SECONDS: float = 2.0
 # A sentence ends at a line break, or at `.`, `!`, `?` or `…` (with any closing quotes or
 # brackets) followed by whitespace. Abbreviations such as "e.g." are not recognised.
 _SENTENCE_END: re.Pattern[str] = re.compile(r"[.!?…][\"'\u201d\u2019)\]]*(?=\s)|\n")
-_WORD: re.Pattern[str] = re.compile(r"\w")
+_LETTER: re.Pattern[str] = re.compile(r"[^\W\d_]")
+_ENDS_SENTENCE: re.Pattern[str] = re.compile(r"[.!?…][\"'\u201d\u2019)\]]*$")
+# PDF text breaks at every printed line. A line at least this share of the passage's longest
+# line is taken to be wrapped, so it continues onto the next line unless it ends a sentence.
+_WRAPPED_LINE_SHARE: float = 0.7
 _LABELS_ONLY: re.Pattern[str] = re.compile(r"(?:\[S[0-9]+\][\s.,;:!?]*)+")
 _MARKDOWN_PREFIX: re.Pattern[str] = re.compile(r"^(?:#{1,6}|[-*+>]|[0-9]+[.)])\s+")
 _MARKDOWN_MARKS: re.Pattern[str] = re.compile(r"\*\*|__|`|(?<!\w)[*_]|[*_](?!\w)")
@@ -35,25 +39,60 @@ class Sentence:
 def split_sentences(text: str) -> list[Sentence]:
     """Split text into sentences at line breaks and sentence-ending punctuation.
 
-    Each sentence is stripped of surrounding whitespace, and pieces without a word character
-    (blank lines, bullets on their own) are dropped.
+    Each sentence is stripped of surrounding whitespace, and pieces without a letter (blank
+    lines, bullets or list numbers on their own) are dropped.
 
     Returns:
         The sentences in text order, each an exact slice of `text`.
     """
+    return _split(text, join_wrapped_lines=False)
+
+
+def split_passage_sentences(text: str) -> list[Sentence]:
+    """Split extracted document text into sentences, rejoining lines the layout wrapped.
+
+    Like `split_sentences`, except that a line break inside a sentence is not a boundary: the
+    line continues when it does not end with sentence punctuation and the next line starts with
+    a lowercase letter, or starts with a letter or digit after a line at least 70% as long as
+    the text's longest line. A sentence keeps its line breaks, so it is still an exact slice.
+
+    Returns:
+        The sentences in text order, each an exact slice of `text`.
+    """
+    return _split(text, join_wrapped_lines=True)
+
+
+def _split(text: str, *, join_wrapped_lines: bool) -> list[Sentence]:
+    longest: int = max(len(line) for line in text.split("\n"))
     sentences: list[Sentence] = []
     start: int = 0
     for match in _SENTENCE_END.finditer(text):
+        if (
+            join_wrapped_lines
+            and match.group() == "\n"
+            and _continues(text, match.start(), longest)
+        ):
+            continue
         _append_sentence(text, start, match.end(), sentences)
         start = match.end()
     _append_sentence(text, start, len(text), sentences)
     return sentences
 
 
+def _continues(text: str, line_break: int, longest: int) -> bool:
+    line: str = text[text.rfind("\n", 0, line_break) + 1 : line_break].rstrip()
+    following: str = text[line_break + 1 : line_break + 2]
+    if not line or not following or _ENDS_SENTENCE.search(line):
+        return False
+    return following.islower() or (
+        following.isalnum() and len(line) >= _WRAPPED_LINE_SHARE * longest
+    )
+
+
 def _append_sentence(text: str, start: int, end: int, sentences: list[Sentence]) -> None:
     piece: str = text[start:end]
     stripped: str = piece.strip()
-    if _WORD.search(stripped) is None:
+    if _LETTER.search(stripped) is None:
         return
     offset: int = start + len(piece) - len(piece.lstrip())
     sentences.append(Sentence(start=offset, end=offset + len(stripped), text=stripped))
@@ -202,7 +241,7 @@ async def _select_quotes(
     question_vector: Sequence[float],
     embedder: Embedder,
 ) -> list[Citation]:
-    passages: list[list[Sentence]] = [split_sentences(s.evidence.text) for s in sources]
+    passages: list[list[Sentence]] = [split_passage_sentences(s.evidence.text) for s in sources]
     citing: dict[str, list[str]] = citing_sentences(answer)
     queries: list[str] = list(
         dict.fromkeys(

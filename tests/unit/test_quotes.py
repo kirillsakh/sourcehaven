@@ -11,6 +11,7 @@ from sourcehaven.qa.quotes import (
     assemble_quote,
     citing_sentences,
     select_quotes,
+    split_passage_sentences,
     split_sentences,
 )
 from tests.support.embeddings import QueryFailingEmbedder, SlowEmbedder
@@ -38,6 +39,43 @@ def test_lines_without_full_stops_are_sentences_and_blank_pieces_are_dropped() -
     assert [s.text for s in split_sentences("Skills\n\n  •  \nPython, FastAPI\n")] == [
         "Skills",
         "Python, FastAPI",
+    ]
+
+
+CV_TEXT: str = (
+    "Alex Novák\n"
+    "Summary\n"
+    "Backend engineer with 8 years of Python, focused on search, data pipelines and APIs."
+    " Recently\n"
+    "built retrieval features on PostgreSQL and pgvector for internal documents.\n"
+    "\x7f\n"
+    "Moved vector search from Elasticsearch to PostgreSQL with pgvector, cutting p95 latency by\n"
+    "40%.\n"
+    "Must-haves\n"
+    "1\n"
+    "5+ years of professional Python development."
+)
+
+
+def test_passage_sentences_join_wrapped_lines_and_drop_pieces_without_letters() -> None:
+    sentences: list[Sentence] = split_passage_sentences(CV_TEXT)
+    assert [s.text.replace("\n", " ") for s in sentences] == [
+        "Alex Novák",
+        "Summary",
+        "Backend engineer with 8 years of Python, focused on search, data pipelines and APIs.",
+        "Recently built retrieval features on PostgreSQL and pgvector for internal documents.",
+        "Moved vector search from Elasticsearch to PostgreSQL with pgvector, cutting p95 latency"
+        " by 40%.",
+        "Must-haves",
+        "5+ years of professional Python development.",
+    ]
+    assert all(CV_TEXT[s.start : s.end] == s.text for s in sentences)
+
+
+def test_answer_sentences_keep_every_line_break_as_a_boundary() -> None:
+    assert [s.text for s in split_sentences("Alex has the skills\nlisted in the ad")] == [
+        "Alex has the skills",
+        "listed in the ad",
     ]
 
 
@@ -173,3 +211,14 @@ async def test_slow_embedder_times_out() -> None:
             embedder=SlowEmbedder(delay_seconds=1.0),
             timeout_seconds=0.05,
         )
+
+
+async def test_quotes_contain_whole_sentences_of_wrapped_passage_lines() -> None:
+    embedder: HashEmbedder = HashEmbedder()
+    chosen: list[Citation] = await select_quotes(
+        "Alex moved vector search to pgvector, cutting p95 latency by 40% [S1].",
+        [_citation("S1", CV_TEXT, cited=True)],
+        question_vector=await embedder.embed_query("latency"),
+        embedder=embedder,
+    )
+    assert "cutting p95 latency by\n40%." in chosen[0].quote
