@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,8 +20,10 @@ from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.repositories.documents import (
     DocumentView,
     NewDocument,
+    RemovalOutcome,
     add_queued_document,
     count_documents,
+    delete_document,
     find_by_content_hash,
     get_document_view,
     list_document_views,
@@ -28,6 +31,7 @@ from sourcehaven.storage.repositories.documents import (
 )
 
 router: APIRouter = APIRouter(tags=["documents"])
+logger: logging.Logger = logging.getLogger(__name__)
 
 CHUNK_BYTES: Final[int] = 64 * 1024
 PDF_SIGNATURE: Final[bytes] = b"%PDF-"
@@ -213,3 +217,36 @@ async def read_document(
     if view is None:
         raise ApiError(404, "not_found")
     return _response(view)
+
+
+@router.delete(
+    "/{document_id}",
+    status_code=204,
+    responses={
+        404: {"description": "Unknown document"},
+        409: {"description": "An answer is still being written from this document"},
+    },
+)
+async def remove_document(
+    document_id: UUID,
+    container: Annotated[AppContainer, Depends(get_container)],
+    owner: Annotated[OwnerScope, Depends(current_owner)],
+) -> None:
+    """Remove a document, its stored file and the quotes taken from it.
+
+    Answers that cited the document are kept; their sources lose the link and the quote. The
+    stored file is removed after the database commit, and a failure there is logged without
+    failing the request.
+    """
+    async with owner_session(container.sessions, owner) as session:
+        outcome: RemovalOutcome = await delete_document(
+            session, owner, document_id, now=container.clock()
+        )
+    if outcome is RemovalOutcome.NOT_FOUND:
+        raise ApiError(404, "not_found")
+    if outcome is RemovalOutcome.IN_USE:
+        raise ApiError(409, "document_in_use")
+    try:
+        await container.file_store.delete_prefix(f"{owner.owner_id}/{document_id}/")
+    except OSError:
+        logger.exception("could not remove files of document %s", document_id)

@@ -1,14 +1,40 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
+from enum import StrEnum
+from typing import Final
 from uuid import UUID, uuid7
 
-from sqlalchemy import Result, Row, ScalarSelect, Select, func, select, text
+from sqlalchemy import (
+    Result,
+    Row,
+    ScalarSelect,
+    Select,
+    Uuid,
+    any_,
+    delete,
+    func,
+    literal,
+    select,
+    text,
+    update,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sourcehaven.domain.models import OwnerScope
-from sourcehaven.storage.models import Document, DocumentVersion, IngestionJob
+from sourcehaven.storage.models import Document, DocumentVersion, IngestionJob, Turn, TurnSource
 
 IN_PROGRESS_JOB_STATUSES: tuple[str, ...] = ("queued", "running", "retry")
+
+# Answers are capped at 800 output tokens and finish in well under a minute. A turn still
+# `generating` after this long was abandoned (for example by an API restart), so it must not make
+# its documents impossible to remove.
+GENERATING_TURN_BLOCK_WINDOW: Final[timedelta] = timedelta(minutes=10)
+
+
+class RemovalOutcome(StrEnum):
+    REMOVED = "removed"
+    NOT_FOUND = "not_found"
+    IN_USE = "document_in_use"
 
 
 @dataclass(frozen=True)
@@ -182,3 +208,57 @@ async def get_document_view(
     )
     row: Row[Document, DocumentVersion, IngestionJob] | None = result.one_or_none()
     return None if row is None else _view(*row)
+
+
+async def delete_document(
+    session: AsyncSession, owner: OwnerScope, document_id: UUID, *, now: datetime
+) -> RemovalOutcome:
+    """Remove one of the owner's documents and blank the quotes taken from it.
+
+    Locks the document row first, so removals of the same document and question starts that lock
+    the document serialise. Refuses while a recent answer that selected the document is still
+    generating. Otherwise the quotes of every source taken from the document are emptied (the
+    source rows keep their label, name and pages), and the document is deleted; the database
+    cascades remove its versions, jobs and chunks and clear the sources' document links.
+
+    The caller's transaction must be an `owner_session` and is what makes this atomic. The stored
+    file is not touched: the caller removes it after the commit.
+
+    Args:
+        session: Session of the owner's transaction.
+        owner: The owner whose document is removed.
+        document_id: The document to remove.
+        now: The current time, which bounds how recent a generating turn must be to block removal.
+
+    Returns:
+        `NOT_FOUND` for an unknown id or another owner's document, `IN_USE` if an answer using the
+        document is being generated, otherwise `REMOVED`.
+    """
+    locked: UUID | None = await session.scalar(
+        select(Document.id)
+        .where(Document.owner_id == owner.owner_id, Document.id == document_id)
+        .with_for_update()
+    )
+    if locked is None:
+        return RemovalOutcome.NOT_FOUND
+    generating: UUID | None = await session.scalar(
+        select(Turn.id)
+        .where(
+            Turn.owner_id == owner.owner_id,
+            Turn.status == "generating",
+            Turn.created_at > now - GENERATING_TURN_BLOCK_WINDOW,
+            literal(document_id, Uuid()) == any_(Turn.selected_document_ids),
+        )
+        .limit(1)
+    )
+    if generating is not None:
+        return RemovalOutcome.IN_USE
+    await session.execute(
+        update(TurnSource)
+        .where(TurnSource.owner_id == owner.owner_id, TurnSource.document_id == document_id)
+        .values(quote_snapshot="")
+    )
+    await session.execute(
+        delete(Document).where(Document.owner_id == owner.owner_id, Document.id == document_id)
+    )
+    return RemovalOutcome.REMOVED

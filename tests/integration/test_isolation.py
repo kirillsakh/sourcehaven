@@ -66,6 +66,21 @@ async def test_foreign_document_is_404_like_unknown(
     assert foreign.content == unknown.content
 
 
+async def test_removing_foreign_document_is_404_like_unknown(
+    two_ready_visitors: TwoReadyVisitors,
+) -> None:
+    (x, x_docs), (y, _) = two_ready_visitors
+    chunks_before: int = await x.chunk_count(x_docs[0])
+    assert chunks_before > 0  # control: there is something Y could destroy
+    foreign: httpx.Response = await y.client.delete(f"/api/documents/{x_docs[0]}")
+    unknown: httpx.Response = await y.client.delete(f"/api/documents/{uuid4()}")
+    assert foreign.status_code == unknown.status_code == 404
+    assert foreign.json() == unknown.json() == {"code": "not_found"}
+    assert foreign.content == unknown.content
+    assert (await x.document(x_docs[0]))["state"] == "ready"
+    assert await x.chunk_count(x_docs[0]) == chunks_before
+
+
 async def test_foreign_conversation_is_404_like_unknown(
     two_ready_visitors: TwoReadyVisitors,
 ) -> None:
@@ -146,6 +161,7 @@ async def test_without_cookie_everything_requires_session(
         ("GET", "/api/documents"),
         ("GET", f"/api/documents/{x_docs[0]}"),
         ("POST", "/api/documents"),
+        ("DELETE", f"/api/documents/{x_docs[0]}"),
         ("POST", "/api/conversations"),
         ("GET", f"/api/conversations/{x.conversation_id}"),
         ("POST", f"/api/conversations/{x.conversation_id}/turns"),

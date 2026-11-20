@@ -99,12 +99,13 @@ The first visitors come through links the owner shares personally. Later, people
 | A12 | Summary types: document summary, collection summary, and focused summary (handled as a question). Sectioned summarisation for long documents. Brief and detailed lengths. Summaries are in English |
 | A13 | Documents can be any kind (contracts, papers, manuals, reports, books). No user-specified document kind; one automatic, layout-aware pipeline. Scanned PDFs are detected and explained; OCR is deferred |
 | A14 | Abuse protection: **Cloudflare Turnstile** verification when a session is created, plus a share of the daily budget reserved for established sessions (§9). The privacy page discloses Cloudflare's processing |
-| A15 | Deleting a document also deletes every question/answer turn that used it as evidence, and every summary that included it (§7.5, §10) |
+| A15 | Deleting a document removes its file, chunks and every quote taken from it, and keeps the conversation: questions and answers stay, and their sources from that document are shown as deleted. Removal is refused (`409`) while an answer using the document is generating. Replaces the original decision to delete every turn that used it; see `2026-11-20-document-removal-design.md` (§7.5, §10) |
 | A17 | The frontend lives in the same Git repository as a separate Node project under `frontend/` (§11.3) |
 
 **Changes after approval:**
 
 - 2026-11-20: language scope narrowed to English only (owner decision); earlier multi-language scope withdrawn.
+- 2026-11-20: A15 changed (owner decision): deleting a document keeps the conversation and blanks the quotes taken from it, instead of deleting the turns that used it.
 
 ### 2.3 Proposed defaults
 
@@ -513,7 +514,7 @@ question + selected document ids + conversation
   → final citation validation → persist turn + sources → `done` event
 ```
 
-**Follow-ups** [P]: there is no extra rewriting LLM call [R]. The retrieval query concatenates the current question with the previous user question in the conversation, which handles most pronoun and ellipsis follow-ups cheaply. The generator also receives the last turns as history (§7.4). An LLM query-rewriting step is added only if the evaluation shows follow-up retrieval failing.
+**Follow-ups** [P]: there is no extra rewriting LLM call [R]. The retrieval query concatenates the current question with the previous user question in the conversation, which handles most pronoun and ellipsis follow-ups cheaply. The generator also receives the last turns as history (§7.4). An LLM query-rewriting step is added only if the evaluation shows follow-up retrieval failing. Turns with any source whose `document_id` is null (its document was deleted, §7.5) are excluded from the history the generator receives and from the previous question used for retrieval [A15].
 
 **Fresh evidence:** every answer retrieves its own evidence [R]. Earlier answers appear only as conversation history, labelled as prior assistant turns, never as sources.
 
@@ -575,9 +576,9 @@ Prompts are measured with `tiktoken` when the model's encoding is available, or 
 - **Limits of label validation:** it does not prove a claim is supported [R]. Support is measured in the evaluation (§8.3).
 - **Intelligible over time:** snapshots keep old citations readable after re-ingestion.
 - **Deleting a document** [A15]:
-  - **What's removed:** every turn whose supplied evidence included it, cited or not, since uncited passages were still sent to the model. Its question, answer text and sources go too, as does every summary that included it.
-  - **What the conversation shows:** "N turns removed with a deleted document" where they were.
-  - **History:** later follow-up context never contains the removed turns.
+  - **What's removed:** the document's file, chunks and versions, and the quote of every source taken from it (cited or not, since uncited passages were still sent to the model), as well as any summary cache that included it. The source row stays with its label, document name snapshot, page range and `cited` flag, but its `document_id` becomes null and its quote becomes empty. The API reports such a source as `document_id: null`, `quote: ""`.
+  - **What's kept:** every question and answer, including their text. The UI shows the deleted sources as deleted and the quote as no longer available. The privacy page says that answers already received stay until the session ends.
+  - **History [M5]:** turns with any source whose `document_id` is null are excluded from the conversation history used for follow-ups (§7.1), so later prompts carry no answer that quoted the removed document.
   - To support this, `turn_sources` rows exist for every supplied passage, which they already do (`cited = false` for uncited ones).
 
 ---
@@ -714,9 +715,9 @@ At $30/month that is on the order of 30,000 questions, or about 1,000 large summ
   3. It deletes files with no matching version row (orphans older than 1 hour) and prunes old rate counters.
   4. Deletions are logged by owner id and counts only.
 - **End session:** `POST /api/session/end` deletes the owner synchronously, then the files (or schedules file removal if it fails), and clears the cookie.
-- **Delete document:** `DELETE /api/documents/{id}` deletes, in one transaction, the document's rows (chunks, versions, jobs, section and summary caches containing it) and every turn that used it as evidence [A15]. Its files are removed afterwards.
-  - **In-progress ingestion:** the worker checks before publishing and discards the work.
-  - **Answers being generated:** a turn currently generating from that document is cancelled first and then deleted with the rest.
+- **Delete document:** `DELETE /api/documents/{id}` deletes, in one transaction, the document's rows (chunks, versions, jobs, section and summary caches containing it) and blanks the quote of every source taken from it; turns are kept and those sources lose their `document_id` [A15]. Its files are removed after the commit; a failure there is logged (ids only) and does not fail the request, and the orphan sweep removes them later.
+  - **In-progress ingestion:** deleting cascades the job row, and the worker discards its work when the job has disappeared.
+  - **Answers being generated:** removal is refused with `409 document_in_use` while a turn that selected the document is `generating` and was created within the last 10 minutes. Older `generating` turns are treated as abandoned (an API restart can leave one behind) and do not block removal. Cancelling an answer is not part of removal.
 - **Restarts:** data survives restarts and redeploys within the retention window [A].
 - **Backups:**
   - **Database:** nightly `pg_dump`, kept 3 days [P]. Deleted data can therefore persist in backups for up to 3 days, and the privacy page says so.
@@ -726,6 +727,7 @@ At $30/month that is on the order of 30,000 questions, or about 1,000 large summ
   - **Sent to OpenAI:** question text and the retrieved passages, or whole-document text for summaries, plus the recent conversation.
   - **OpenAI's terms:** OpenAI states that API data is not used for training by default and may be retained for up to 30 days for abuse monitoring [V]. Zero data retention requires OpenAI's approval and is not assumed.
   - **What Sourcehaven keeps:** what is retained and for how long (above), and that logs contain no document content.
+  - **Deleting a document:** removes the file, its text and the quotes taken from it. Answers already received stay until the session ends.
   - **Cloudflare Turnstile:** it processes browser and device signals and the visitor's IP to tell humans from bots when a session is created, under Cloudflare's own privacy terms. No document content is ever sent to Cloudflare [A14].
 
 ---
@@ -741,7 +743,7 @@ At $30/month that is on the order of 30,000 questions, or about 1,000 large summ
 | `POST /api/session/end` | Delete everything and end the session |
 | `POST /api/documents` | Upload one PDF (multipart) → `202` |
 | `GET /api/documents` | List the owner's documents with state, progress, errors, skipped pages |
-| `DELETE /api/documents/{id}` | Delete a document |
+| `DELETE /api/documents/{id}` | Delete a document and its quotes, keep the answers → `204`; `404` unknown or foreign id; `409 document_in_use` while an answer using it is generating |
 | `POST /api/conversations` | Start a conversation |
 | `GET /api/conversations/{id}` | Turns with statuses, text and sources (used after reconnecting) |
 | `POST /api/conversations/{id}/turns` | Ask a question or request a summary → **SSE stream** |
@@ -929,7 +931,7 @@ A Playwright browser test is deferred [P].
 - **Failure inputs:** empty, malformed, encrypted and image-only fixtures each produce their documented error code. A half-scanned fixture reports its skipped pages.
 - **Idempotency:** killing the worker mid-job means the re-run produces exactly one set of chunks. A repeated `client_request_id` triggers no second generation, which the fake LLM call counter confirms.
 - **Publication:** chunks of a version in `processing` state are never returned by retrieval.
-- **Re-ingestion and deletion:** after an embedding config change, stale documents are excluded, re-ingested and re-published. Deleting a document removes its rows and files, every turn that used it as evidence (cited or not), and every summary that included it. Later follow-up prompts contain none of the removed text, which the fake LLM's recorded prompts confirm.
+- **Re-ingestion and deletion:** after an embedding config change, stale documents are excluded, re-ingested and re-published. Deleting a document removes its rows and files and every summary cache that included it, and blanks the quote of every source taken from it (cited or not) while the turns stay, with those sources reported as `document_id: null`, `quote: ""`. Deletion is refused with `409` while an answer using the document is generating, and a `generating` turn older than 10 minutes does not block it. Later follow-up prompts contain no turn with a deleted source and none of the removed text, which the fake LLM's recorded prompts confirm (the prompt part lands with M5).
 - **Incompatible embeddings:** TEI reporting a different model makes readiness fail.
 - **Restarts and expiry:** data persists across an `api`/`db` container restart. An advanced clock expires the session, after which the API returns "session expired" and the sweeper physically removes the rows and files.
 - **Limits:** each quota and rate limit returns its error. The spending cap blocks generation. The admission queue returns `busy` when full. Above 70% of the daily cap, only established sessions are admitted.
@@ -1025,7 +1027,7 @@ Each milestone is a set of atomic commits with tests and documentation.
    - Direct and sectioned document summaries, collection summaries.
    - Caching, progress events, page-range citations.
 6. **M5 — Lifecycle**
-   - Follow-ups with history budget.
+   - Follow-ups with history budget; turns with a source whose `document_id` is null are excluded from the history (§7.1).
    - Deletion, end session, expiry sweeper, orphan cleanup.
    - Restart tests.
 7. **M6 — Product UI and public pages**

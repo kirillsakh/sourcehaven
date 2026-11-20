@@ -95,7 +95,15 @@ export interface paths {
         get: operations["read_document_api_documents__document_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Remove Document
+         * @description Remove a document, its stored file and the quotes taken from it.
+         *
+         *     Answers that cited the document are kept; their sources lose the link and the quote. The
+         *     stored file is removed after the database commit, and a failure there is logged without
+         *     failing the request.
+         */
+        delete: operations["remove_document_api_documents__document_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -568,6 +576,49 @@ export interface operations {
             };
             /** @description Unknown document */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_document_api_documents__document_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown document */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An answer is still being written from this document */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
