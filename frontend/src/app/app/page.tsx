@@ -42,9 +42,9 @@ export default function AppPage(): ReactElement {
   const uploadsAllowed: boolean =
     limits !== null && documents.documents.length < limits.max_documents;
 
-  const noDocuments: boolean = documents.documents.length === 0 && documents.uploads.length === 0;
+  const noDocuments: boolean = documents.documents.length === 0;
   // From 800px the documents are a plain column, so the disclosure is held open and its summary
-  // hidden; on a phone the reader's choice wins over the default of open until a file is added.
+  // hidden; on a phone the reader's choice wins over the default of open until a document is listed.
   const documentsOpen: boolean = twoColumns || (phoneDocumentsOpen ?? noDocuments);
 
   // A modal drawer left open would keep the page inert once the evidence column is showing.

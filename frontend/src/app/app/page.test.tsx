@@ -316,6 +316,22 @@ describe("AppPage", () => {
       expect(disclosure().open).toBe(true);
     });
 
+    it("stays open on a phone while an upload is in progress and no document is listed", async () => {
+      setViewport(390);
+      mockedUpload.mockReturnValue(new Promise<DocumentInfo>(() => {}));
+      const user = userEvent.setup();
+      render(<AppPage />);
+      await screen.findByText("Ask questions about your PDFs");
+
+      await user.upload(
+        document.querySelector<HTMLInputElement>('input[type="file"]') as HTMLInputElement,
+        new File(["%PDF-1.7"], "contract.pdf", { type: "application/pdf" }),
+      );
+
+      expect(await screen.findByText("contract.pdf")).toBeTruthy();
+      expect(disclosure().open).toBe(true);
+    });
+
     it("keeps the reader's choice on a phone when the documents list changes", async () => {
       setViewport(390);
       const user = userEvent.setup();
