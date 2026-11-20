@@ -490,6 +490,22 @@ describe("useDocuments", () => {
       expect(result.current.removing.size).toBe(0);
     });
 
+    it("treats a document the server no longer knows as removed", async () => {
+      mockedDelete.mockRejectedValue(new ApiError(404, "not_found"));
+      const { result } = await mountWith([doc("a", "ready", "1"), doc("b", "ready", "2")]);
+
+      let removed = false;
+      await act(async () => {
+        removed = await result.current.remove("a");
+      });
+
+      expect(removed).toBe(true);
+      expect(result.current.documents.map((d) => d.id)).toEqual(["b"]);
+      expect([...result.current.selected]).toEqual(["b"]);
+      expect(result.current.removeErrors.size).toBe(0);
+      expect(result.current.removing.size).toBe(0);
+    });
+
     it("clears an earlier error when the same document is removed again", async () => {
       mockedDelete.mockRejectedValueOnce(new ApiError(409, "document_in_use"));
       const { result } = await mountWith([doc("a")]);

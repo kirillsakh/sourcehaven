@@ -17,6 +17,7 @@ import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { DropOverlay } from "@/components/documents/drop-overlay";
 import { EvidenceDrawer } from "@/components/evidence/evidence-drawer";
 import { EvidencePanel } from "@/components/evidence/evidence-panel";
+import { DOCUMENT_IN_USE_TEXT } from "@/lib/messages";
 import { useConversation, type ConversationState, type TurnViewModel } from "@/lib/use-conversation";
 import { useDocuments, type DocumentsState } from "@/lib/use-documents";
 import { useSession, type SessionState } from "@/lib/use-session";
@@ -61,6 +62,19 @@ export default function AppPage(): ReactElement {
   if (threeColumns && drawerOpen) {
     setDrawerOpen(false);
   }
+
+  const { remove }: DocumentsState = documents;
+  const { markDocumentDeleted }: ConversationState = conversation;
+  const removeDocument: (id: string) => void = useCallback(
+    (id: string): void => {
+      void remove(id).then((removed: boolean): void => {
+        if (removed) {
+          markDocumentDeleted(id);
+        }
+      });
+    },
+    [remove, markDocumentDeleted],
+  );
 
   function focusDocuments(): void {
     flushSync(() => setPhoneDocumentsOpen(true));
@@ -133,8 +147,12 @@ export default function AppPage(): ReactElement {
               documents={documents.documents}
               uploads={documents.uploads}
               selected={documents.selected}
+              removing={documents.removing}
+              removeErrors={documents.removeErrors}
+              removeDisabledReason={conversation.generating ? DOCUMENT_IN_USE_TEXT : null}
               onFiles={addFilesAndShow}
               onToggle={documents.toggle}
+              onRemove={removeDocument}
               onSelectAll={documents.setAllSelected}
               onDismissUpload={documents.dismissUpload}
               listRef={documentList}

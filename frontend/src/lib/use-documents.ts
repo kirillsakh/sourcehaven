@@ -237,7 +237,14 @@ export function useDocuments(limits: SessionLimits | null): DocumentsState {
       return next;
     });
     try {
-      await deleteDocument(id);
+      try {
+        await deleteDocument(id);
+      } catch (error) {
+        // Already gone, e.g. removed in another tab: the outcome the reader wanted.
+        if (!(error instanceof ApiError && error.status === 404 && error.code === "not_found")) {
+          throw error;
+        }
+      }
       removedIds.current.add(id);
       knownReady.current.delete(id);
       setDocuments((previous) => previous.filter((doc) => doc.id !== id));

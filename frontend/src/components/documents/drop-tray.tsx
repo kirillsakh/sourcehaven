@@ -47,7 +47,7 @@ export function DropTray({
         </button>
         {limits === null ? "." : `. ${describeLimits(limits)}.`}
       </p>
-      {disabled && limits !== null && <p className={styles.full}>This session is full.</p>}
+      {disabled && limits !== null && <p className={styles.full}>This session is full. Remove a document to add another.</p>}
       <input
         ref={input}
         type="file"

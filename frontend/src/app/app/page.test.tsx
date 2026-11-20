@@ -8,6 +8,7 @@ import {
   ApiError,
   createConversation,
   createSession,
+  deleteDocument,
   getConversation,
   listDocuments,
   streamQuestion,
@@ -22,6 +23,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   createSession: vi.fn(),
   listDocuments: vi.fn(),
+  deleteDocument: vi.fn(),
   uploadDocumentWithProgress: vi.fn(),
   createConversation: vi.fn(),
   getConversation: vi.fn(),
@@ -40,6 +42,7 @@ const ANNEX_QUOTE = "The notice period may be reduced only by mutual written agr
 
 const mockedSession = vi.mocked(createSession);
 const mockedList = vi.mocked(listDocuments);
+const mockedDelete = vi.mocked(deleteDocument);
 const mockedUpload = vi.mocked(uploadDocumentWithProgress);
 const mockedCreate = vi.mocked(createConversation);
 const mockedGet = vi.mocked(getConversation);
@@ -267,6 +270,98 @@ describe("AppPage", () => {
 
     expect(await screen.findByText("This session can hold up to 10 documents.")).toBeTruthy();
     expect(mockedUpload).not.toHaveBeenCalled();
+  });
+
+  it("disables Ask and updates the scope line when the only selected document is removed", async () => {
+    mockedList.mockResolvedValue([
+      readyDocument("1", "employment-contract.pdf"),
+      readyDocument("2", "annex-b.pdf"),
+    ]);
+    mockedDelete.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<AppPage />);
+    await screen.findByText("Answering from 2 of 2 documents");
+    await user.click(screen.getByRole("checkbox", { name: /annex-b\.pdf/ }));
+    await user.type(screen.getByLabelText("Question"), "How long is the notice period?");
+    await screen.findByText("Answering from 1 of 2 documents");
+    expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Remove employment-contract.pdf" }));
+    await user.click(within(screen.getByRole("group", { name: /^Remove .+\?/ })).getByRole("button", { name: "Remove" }));
+
+    expect(mockedDelete).toHaveBeenCalledExactlyOnceWith("1");
+    expect(
+      await screen.findByRole("button", {
+        name: "Select at least one ready document to ask a question.",
+      }),
+    ).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Ask" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole("checkbox", { name: /employment-contract\.pdf/ })).toBeNull();
+  });
+
+  it("disables Remove with the reason while an answer is being written", async () => {
+    mockedList.mockResolvedValue([readyDocument("1", "employment-contract.pdf")]);
+    mockedStream.mockReturnValue(
+      (async function* (): AsyncGenerator<TurnEvent> {
+        await new Promise<void>(() => {});
+      })(),
+    );
+    const user = userEvent.setup();
+    render(<AppPage />);
+    await screen.findByText("Answering from 1 of 1 document");
+    const remove: HTMLButtonElement = screen.getByRole("button", {
+      name: "Remove employment-contract.pdf",
+    });
+    expect(remove.disabled).toBe(false);
+
+    await user.type(screen.getByLabelText("Question"), "How long is the notice period?");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+
+    await waitFor(() => expect(remove.disabled).toBe(true));
+    const reasonId: string = remove.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(reasonId)?.textContent).toBe(
+      "An answer is still being written from this document. Remove it when the answer is finished.",
+    );
+  });
+
+  it("detaches the sources of a removed document from the conversation", async () => {
+    mockedList.mockResolvedValue([
+      readyDocument("1", "employment-contract.pdf"),
+      readyDocument("2", "annex-b.pdf"),
+    ]);
+    mockedStream.mockReturnValue(
+      events(
+        { type: "delta", text: "Three months [S1], shortened by agreement [S2]." },
+        {
+          type: "sources",
+          sources: [
+            { ...source("S1", true, "employment-contract.pdf", 4, CONTRACT_QUOTE), document_id: "1" },
+            { ...source("S2", true, "annex-b.pdf", 2, ANNEX_QUOTE), document_id: "2" },
+          ],
+          invalidCitationLabels: [],
+        },
+        { type: "done" },
+      ),
+    );
+    mockedDelete.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    render(<AppPage />);
+    await screen.findByText("Answering from 2 of 2 documents");
+    await user.type(screen.getByLabelText("Question"), "How long is the notice period?");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    const evidence: HTMLElement = screen.getByRole("region", { name: "Evidence" });
+    await within(evidence).findByText(`“${ANNEX_QUOTE}”`);
+
+    await user.click(screen.getByRole("button", { name: "Remove annex-b.pdf" }));
+    await user.click(
+      within(screen.getByRole("group", { name: /^Remove .+\?/ })).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+
+    await waitFor(() => expect(within(evidence).queryByText(`“${ANNEX_QUOTE}”`)).toBeNull());
+    expect(within(evidence).getByText(`“${CONTRACT_QUOTE}”`)).toBeTruthy();
+    expect(mockedDelete).toHaveBeenCalledExactlyOnceWith("2");
   });
 
   it("replaces the columns with an alert when the session cannot start", async () => {

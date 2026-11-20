@@ -32,6 +32,7 @@ interface PanelHandlers {
   onToggle: (id: string) => void;
   onSelectAll: (all: boolean) => void;
   onDismissUpload: (key: string) => void;
+  onRemove: (id: string) => void;
 }
 
 function handlers(): PanelHandlers {
@@ -40,6 +41,7 @@ function handlers(): PanelHandlers {
     onToggle: vi.fn(),
     onSelectAll: vi.fn(),
     onDismissUpload: vi.fn(),
+    onRemove: vi.fn(),
   };
 }
 
@@ -49,6 +51,9 @@ function renderPanel(
     documents?: DocumentInfo[];
     uploads?: UploadRow[];
     selected?: string[];
+    removing?: string[];
+    removeErrors?: [string, string][];
+    removeDisabledReason?: string | null;
     handlers?: PanelHandlers;
   } = {},
 ): ReturnType<typeof render> {
@@ -59,6 +64,9 @@ function renderPanel(
       documents={options.documents ?? []}
       uploads={options.uploads ?? []}
       selected={new Set(options.selected ?? [])}
+      removing={new Set(options.removing ?? [])}
+      removeErrors={new Map(options.removeErrors ?? [])}
+      removeDisabledReason={options.removeDisabledReason ?? null}
       {...given}
     />,
   );
@@ -263,6 +271,134 @@ describe("DocumentsPanel", () => {
     });
   });
 
+  describe("remove", () => {
+    const IN_USE: string =
+      "An answer is still being written from this document. Remove it when the answer is finished.";
+
+    function row(name: string): HTMLElement {
+      return screen.getByText(name).closest("li") as HTMLElement;
+    }
+
+    it("offers Remove on every server document but not on upload rows", () => {
+      renderPanel({
+        documents: [doc("a"), doc("b", { state: "processing", page_count: null })],
+        uploads: [
+          { key: "u1", name: "new.pdf", status: "uploading", fraction: 0.2 },
+          { key: "u2", name: "bad.png", status: "rejected", reason: "Only PDF files." },
+        ],
+      });
+
+      expect(screen.getByRole("button", { name: "Remove a.pdf" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Remove b.pdf" })).toBeTruthy();
+      expect(within(row("new.pdf")).queryByRole("button", { name: /Remove/ })).toBeNull();
+      expect(within(row("bad.png")).queryByRole("button", { name: /Remove/ })).toBeNull();
+    });
+
+    it("asks in the row before removing and moves focus to Cancel", async () => {
+      const given: PanelHandlers = handlers();
+      renderPanel({ documents: [doc("contract")], handlers: given });
+
+      await userEvent.click(screen.getByRole("button", { name: "Remove contract.pdf" }));
+
+      const group: HTMLElement = screen.getByRole("group", {
+        name: "Remove contract.pdf? Its quotes in earlier answers will no longer be shown.",
+      });
+      expect(within(group).getByRole("button", { name: "Remove" })).toBeTruthy();
+      expect(document.activeElement).toBe(within(group).getByRole("button", { name: "Cancel" }));
+      expect(screen.queryByRole("button", { name: "Remove contract.pdf" })).toBeNull();
+      expect(given.onRemove).not.toHaveBeenCalled();
+    });
+
+    it("cancels with the Cancel button and returns focus to Remove", async () => {
+      const given: PanelHandlers = handlers();
+      renderPanel({ documents: [doc("contract")], handlers: given });
+      await userEvent.click(screen.getByRole("button", { name: "Remove contract.pdf" }));
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(screen.queryByRole("group")).toBeNull();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Remove contract.pdf" }),
+      );
+      expect(given.onRemove).not.toHaveBeenCalled();
+    });
+
+    it("cancels with Escape and returns focus to Remove", async () => {
+      const given: PanelHandlers = handlers();
+      renderPanel({ documents: [doc("contract")], handlers: given });
+      await userEvent.click(screen.getByRole("button", { name: "Remove contract.pdf" }));
+
+      await userEvent.keyboard("{Escape}");
+
+      expect(screen.queryByRole("group")).toBeNull();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Remove contract.pdf" }),
+      );
+      expect(given.onRemove).not.toHaveBeenCalled();
+    });
+
+    it("calls onRemove once with the id even when confirm is clicked twice", async () => {
+      const given: PanelHandlers = handlers();
+      renderPanel({ documents: [doc("contract")], handlers: given });
+      await userEvent.click(screen.getByRole("button", { name: "Remove contract.pdf" }));
+      const confirm: HTMLElement = within(screen.getByRole("group")).getByRole("button", {
+        name: "Remove",
+      });
+
+      await userEvent.dblClick(confirm);
+
+      expect(given.onRemove).toHaveBeenCalledExactlyOnceWith("contract");
+    });
+
+    it("shows Removing and disables both buttons while the request runs", () => {
+      renderPanel({ documents: [doc("contract")], removing: ["contract"] });
+
+      const group: HTMLElement = screen.getByRole("group", { name: "Removing…" });
+      expect(within(group).getByText("Removing…")).toBeTruthy();
+      for (const button of within(group).getAllByRole("button")) {
+        expect((button as HTMLButtonElement).disabled).toBe(true);
+      }
+    });
+
+    it("shows the failure under the row and lets the reader try again", () => {
+      renderPanel({ documents: [doc("contract")], removeErrors: [["contract", IN_USE]] });
+
+      const failure: HTMLElement = within(row("contract.pdf")).getByText(IN_USE);
+      expect(failure.className).toMatch(/bad/);
+      expect(
+        (screen.getByRole("button", { name: "Remove contract.pdf" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(false);
+    });
+
+    it("disables Remove and describes why while an answer is being written", async () => {
+      const given: PanelHandlers = handlers();
+      renderPanel({
+        documents: [doc("contract")],
+        removeDisabledReason: IN_USE,
+        handlers: given,
+      });
+
+      const remove = screen.getByRole("button", {
+        name: "Remove contract.pdf",
+      }) as HTMLButtonElement;
+      expect(remove.disabled).toBe(true);
+      const reasonId: string | null = remove.getAttribute("aria-describedby");
+      expect(document.getElementById(reasonId ?? "")?.textContent).toBe(IN_USE);
+
+      await userEvent.click(remove);
+      expect(given.onRemove).not.toHaveBeenCalled();
+    });
+
+    it("keeps Remove for a failed document", () => {
+      renderPanel({
+        documents: [doc("locked", { state: "failed", page_count: null, error_code: "damaged" })],
+      });
+
+      expect(screen.getByRole("button", { name: "Remove locked.pdf" })).toBeTruthy();
+    });
+  });
+
   describe("tray", () => {
     it("shows the limits from the session", () => {
       renderPanel();
@@ -304,7 +440,9 @@ describe("DocumentsPanel", () => {
 
       expect((screen.getByRole("button", { name: "choose files" }) as HTMLButtonElement).disabled)
         .toBe(true);
-      expect(screen.getByText("This session is full.")).toBeTruthy();
+      expect(
+        screen.getByText("This session is full. Remove a document to add another."),
+      ).toBeTruthy();
     });
 
     it("is disabled while limits are unknown", () => {

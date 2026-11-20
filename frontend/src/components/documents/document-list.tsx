@@ -9,14 +9,22 @@ export function DocumentList({
   documents,
   uploads,
   selected,
+  removing,
+  removeErrors,
+  removeDisabledReason,
   onToggle,
+  onRemove,
   onDismissUpload,
   listRef,
 }: {
   documents: DocumentInfo[];
   uploads: UploadRow[];
   selected: ReadonlySet<string>;
+  removing: ReadonlySet<string>;
+  removeErrors: ReadonlyMap<string, string>;
+  removeDisabledReason: string | null;
   onToggle: (id: string) => void;
+  onRemove: (id: string) => void;
   onDismissUpload: (key: string) => void;
   listRef?: Ref<HTMLUListElement>;
 }): ReactElement {
@@ -31,7 +39,11 @@ export function DocumentList({
             key={document.id}
             document={document}
             checked={document.state === "ready" && selected.has(document.id)}
+            removing={removing.has(document.id)}
+            removeError={removeErrors.get(document.id) ?? null}
+            removeDisabledReason={removeDisabledReason}
             onToggle={onToggle}
+            onRemove={onRemove}
           />
         ),
       )}

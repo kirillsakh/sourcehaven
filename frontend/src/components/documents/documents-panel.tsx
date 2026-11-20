@@ -13,8 +13,12 @@ export function DocumentsPanel({
   documents,
   uploads,
   selected,
+  removing,
+  removeErrors,
+  removeDisabledReason,
   onFiles,
   onToggle,
+  onRemove,
   onSelectAll,
   onDismissUpload,
   listRef,
@@ -23,8 +27,12 @@ export function DocumentsPanel({
   documents: DocumentInfo[];
   uploads: UploadRow[];
   selected: ReadonlySet<string>;
+  removing: ReadonlySet<string>;
+  removeErrors: ReadonlyMap<string, string>;
+  removeDisabledReason: string | null;
   onFiles: (files: File[]) => void;
   onToggle: (id: string) => void;
+  onRemove: (id: string) => void;
   onSelectAll: (all: boolean) => void;
   onDismissUpload: (key: string) => void;
   listRef?: Ref<HTMLUListElement>;
@@ -52,7 +60,11 @@ export function DocumentsPanel({
         documents={documents}
         uploads={uploads}
         selected={selected}
+        removing={removing}
+        removeErrors={removeErrors}
+        removeDisabledReason={removeDisabledReason}
         onToggle={onToggle}
+        onRemove={onRemove}
         onDismissUpload={onDismissUpload}
         listRef={listRef}
       />
