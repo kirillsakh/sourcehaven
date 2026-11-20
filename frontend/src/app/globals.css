@@ -1,26 +1,32 @@
 :root {
-  --background: #ffffff;
-  --foreground: #1a1a1a;
-  --muted: #5f6368;
-  --border: #d4d7dc;
-  --surface: #f5f6f8;
-  --accent: #2456d6;
-  --ok: #1b7a3d;
+  --paper: #ffffff;
+  --ink: #1d2433;
+  --graphite: #4a5263;
+  --rule: #d9dde5;
+  --wash: #f3f5f9;
+  --panel: #fbfcfd;
+  --prussian: #1f4e8c;
+  --highlighter: #ffe774;
+  --ok: #1f7a4d;
   --warn: #8a5a00;
-  --danger: #b3261e;
+  --bad: #b42318;
+  --font-ui: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-quote: "Source Serif 4 Variable", Georgia, serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #121316;
-    --foreground: #ececec;
-    --muted: #9aa0a6;
-    --border: #3a3d44;
-    --surface: #1c1e23;
-    --accent: #8ab4ff;
+    --paper: #12161f;
+    --ink: #e6e9ef;
+    --graphite: #a9b1c1;
+    --rule: #2a3242;
+    --wash: #1a202b;
+    --panel: #161b26;
+    --prussian: #8fb3ff;
+    --highlighter: rgba(255, 231, 116, 0.35);
     --ok: #6fd08c;
     --warn: #f0b955;
-    --danger: #ff8a80;
+    --bad: #ff8a80;
   }
 }
 
@@ -29,11 +35,10 @@
 }
 
 body {
+  font: 15px/1.55 var(--font-ui);
+  color: var(--ink);
+  background: var(--paper);
   margin: 0;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.5;
 }
 
 button,
@@ -43,11 +48,40 @@ textarea {
   color: inherit;
 }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--prussian);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* M1 /app styles, restated on the new tokens. Deleted in Task 8 when /app is rebuilt. */
+
 button {
   padding: 0.4rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--wash);
   cursor: pointer;
 }
 
@@ -57,17 +91,17 @@ button:disabled {
 }
 
 button.primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--background);
+  border-color: var(--prussian);
+  background: var(--prussian);
+  color: var(--paper);
 }
 
 textarea {
   width: 100%;
   padding: 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--background);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
   resize: vertical;
 }
 
@@ -83,7 +117,7 @@ textarea {
   gap: 0.5rem 1.5rem;
   align-items: baseline;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .shell h1 {
@@ -92,7 +126,7 @@ textarea {
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--graphite);
   font-size: 0.875rem;
 }
 
@@ -123,7 +157,7 @@ textarea {
 
 .doc-list li {
   padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
   overflow-wrap: anywhere;
 }
 
@@ -140,14 +174,15 @@ textarea {
 
 progress {
   width: 100%;
+  accent-color: var(--prussian);
 }
 
 .badge {
   display: inline-block;
   padding: 0 0.5rem;
   border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
   white-space: nowrap;
 }
 
@@ -164,17 +199,17 @@ progress {
 }
 
 .badge.failed {
-  color: var(--danger);
+  color: var(--bad);
 }
 
 .error {
-  color: var(--danger);
+  color: var(--bad);
 }
 
 .turn {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .question {
@@ -192,8 +227,8 @@ progress {
   display: inline-block;
   padding: 0 0.3rem;
   border-radius: 4px;
-  background: var(--surface);
-  color: var(--accent);
+  background: var(--wash);
+  color: var(--prussian);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -214,8 +249,8 @@ progress {
 }
 
 .quote {
-  color: var(--muted);
-  font-style: italic;
+  color: var(--graphite);
+  font-family: var(--font-quote);
 }
 
 details.other {
@@ -231,12 +266,4 @@ details.other {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-}
-
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
 }
