@@ -88,6 +88,16 @@ export function createSession(): Promise<SessionInfo> {
   return requestJson<SessionInfo>("/api/session", { method: "POST" });
 }
 
+export async function deleteDocument(documentId: string): Promise<void> {
+  const response = await fetch(`/api/documents/${encodeURIComponent(documentId)}`, {
+    credentials: "same-origin",
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+}
+
 export async function listDocuments(signal?: AbortSignal): Promise<DocumentInfo[]> {
   return requestJson<DocumentInfo[]>("/api/documents", { signal });
 }

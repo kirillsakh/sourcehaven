@@ -8,6 +8,8 @@ const ERROR_TEXT: Record<string, string> = {
   session_document_limit: "This session can hold up to 10 documents.",
   document_not_ready: "A selected document is not ready yet.",
   turn_in_progress: "Another answer is still being generated. Wait for it to finish.",
+  document_in_use:
+    "An answer is still being written from this document. Remove it when the answer is finished.",
   duplicate_request: "This question was already sent.",
 };
 

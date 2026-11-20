@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
+  deleteDocument,
   listDocuments,
   uploadDocumentWithProgress,
   type DocumentInfo,
@@ -23,10 +24,14 @@ export interface DocumentsState {
   uploads: UploadRow[];
   selected: ReadonlySet<string>;
   pollError: string | null;
+  removing: ReadonlySet<string>;
+  removeErrors: ReadonlyMap<string, string>;
   addFiles: (files: readonly File[]) => void;
   dismissUpload: (key: string) => void;
   toggle: (id: string) => void;
   setAllSelected: (all: boolean) => void;
+  /** Remove a document; resolves to whether it was removed. */
+  remove: (id: string) => Promise<boolean>;
 }
 
 interface UploadJob {
@@ -51,12 +56,20 @@ export function useDocuments(limits: SessionLimits | null): DocumentsState {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [pollError, setPollError] = useState<string | null>(null);
 
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
+  const [removeErrors, setRemoveErrors] = useState<ReadonlyMap<string, string>>(new Map());
+
   const knownReady = useRef<Set<string>>(new Set());
+  // Read synchronously, so two calls in the same tick cannot both pass the guard.
+  const removingNow = useRef<Set<string>>(new Set());
+  // A list request that began before a removal may still return the document afterwards.
+  const removedIds = useRef<Set<string>>(new Set());
   const queue = useRef<UploadJob[]>([]);
   const workers = useRef<number>(0);
 
   // Merge instead of replace: an upload that finished after a list request began must stay listed.
-  const mergeDocuments = useCallback((incoming: readonly DocumentInfo[]): void => {
+  const mergeDocuments = useCallback((all: readonly DocumentInfo[]): void => {
+    const incoming: DocumentInfo[] = all.filter((doc) => !removedIds.current.has(doc.id));
     setDocuments((previous) => {
       const merged = new Map<string, DocumentInfo>(previous.map((doc) => [doc.id, doc]));
       for (const doc of incoming) {
@@ -212,14 +225,52 @@ export function useDocuments(limits: SessionLimits | null): DocumentsState {
     [documents],
   );
 
+  const remove = useCallback(async (id: string): Promise<boolean> => {
+    if (removingNow.current.has(id)) {
+      return false;
+    }
+    removingNow.current.add(id);
+    setRemoving((previous) => new Set(previous).add(id));
+    setRemoveErrors((previous) => {
+      const next = new Map(previous);
+      next.delete(id);
+      return next;
+    });
+    try {
+      await deleteDocument(id);
+      removedIds.current.add(id);
+      knownReady.current.delete(id);
+      setDocuments((previous) => previous.filter((doc) => doc.id !== id));
+      setSelected((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+      return true;
+    } catch (error) {
+      setRemoveErrors((previous) => new Map(previous).set(id, describeError(error)));
+      return false;
+    } finally {
+      removingNow.current.delete(id);
+      setRemoving((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+    }
+  }, []);
+
   return {
     documents,
     uploads,
     selected,
     pollError,
+    removing,
+    removeErrors,
     addFiles,
     dismissUpload,
     toggle,
     setAllSelected,
+    remove,
   };
 }

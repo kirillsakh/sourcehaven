@@ -42,6 +42,8 @@ export interface ConversationState {
   /** Grows with every `activate` call, so repeating the same citation can replay its highlight. */
   activationCount: number;
   activate: (turnKey: string, label?: string) => void;
+  /** Detach the sources of a removed document from every turn, keeping their labels. */
+  markDocumentDeleted: (documentId: string) => void;
 }
 
 interface ActiveTurn {
@@ -270,6 +272,25 @@ export function useConversation(limits: SessionLimits | null): ConversationState
     setActivationCount((count: number): number => count + 1);
   }, []);
 
+  const markDocumentDeleted = useCallback((documentId: string): void => {
+    setTurns((previous: TurnViewModel[]): TurnViewModel[] =>
+      previous.map((turn: TurnViewModel): TurnViewModel => {
+        if (!turn.sources.some((source: TurnSource) => source.document_id === documentId)) {
+          return turn;
+        }
+        return {
+          ...turn,
+          sources: turn.sources.map(
+            (source: TurnSource): TurnSource =>
+              source.document_id === documentId
+                ? { ...source, document_id: null, quote: "" }
+                : source,
+          ),
+        };
+      }),
+    );
+  }, []);
+
   return {
     turns,
     generating,
@@ -282,5 +303,6 @@ export function useConversation(limits: SessionLimits | null): ConversationState
     activeLabel: active.label,
     activationCount,
     activate,
+    markDocumentDeleted,
   };
 }

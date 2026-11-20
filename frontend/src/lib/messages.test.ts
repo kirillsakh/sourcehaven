@@ -17,6 +17,12 @@ function doc(overrides: Partial<DocumentInfo>): DocumentInfo {
 }
 
 describe("describeError", () => {
+  it("explains why a document in use cannot be removed", () => {
+    expect(describeError(new ApiError(409, "document_in_use"))).toBe(
+      "An answer is still being written from this document. Remove it when the answer is finished.",
+    );
+  });
+
   it("maps known codes to their text", () => {
     expect(describeError(new ApiError(413, "too_large"))).toBe(
       "Files can be up to 20 MB. Try splitting or compressing the PDF.",

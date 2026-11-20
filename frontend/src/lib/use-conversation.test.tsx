@@ -379,4 +379,38 @@ describe("useConversation", () => {
 
     expect(mockedGet).not.toHaveBeenCalled();
   });
+
+  it("marks only the deleted document's sources as deleted, in every turn", async () => {
+    window.sessionStorage.setItem(STORAGE_KEY, "c9");
+    const fromDocument = (label: string, documentId: string): TurnSource => ({
+      ...source(label, true),
+      document_id: documentId,
+    });
+    mockedGet.mockResolvedValue({
+      id: "c9",
+      turns: ["t1", "t2"].map((id: string) => ({
+        id,
+        status: "complete",
+        question: "Q?",
+        text: "A [S1] [S2]",
+        sources: [fromDocument("S1", "d1"), fromDocument("S2", "d2")],
+        created_at: "2026-01-01T00:00:00Z",
+      })),
+    });
+    const { result } = mount();
+    await waitFor(() => expect(result.current.turns).toHaveLength(2));
+
+    act(() => {
+      result.current.markDocumentDeleted("d1");
+    });
+
+    for (const turn of result.current.turns) {
+      expect(turn.sources[0]).toMatchObject({ label: "S1", document_id: null, quote: "" });
+      expect(turn.sources[1]).toMatchObject({
+        label: "S2",
+        document_id: "d2",
+        quote: "quote S2",
+      });
+    }
+  });
 });

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ApiError,
+  deleteDocument,
   listDocuments,
   uploadDocumentWithProgress,
   type DocumentInfo,
@@ -13,6 +14,7 @@ import { useDocuments } from "@/lib/use-documents";
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
+  deleteDocument: vi.fn(),
   listDocuments: vi.fn(),
   uploadDocumentWithProgress: vi.fn(),
 }));
@@ -24,6 +26,7 @@ const limits: SessionLimits = {
   max_question_chars: 2000,
 };
 
+const mockedDelete = vi.mocked(deleteDocument);
 const mockedList = vi.mocked(listDocuments);
 const mockedUpload = vi.mocked(uploadDocumentWithProgress);
 
@@ -409,5 +412,117 @@ describe("useDocuments", () => {
 
     expect(result.current.pollError).toBeNull();
     expect(result.current.documents).toHaveLength(1);
+  });
+
+  describe("remove", () => {
+    it("drops the document and its selection and reports success", async () => {
+      mockedDelete.mockResolvedValue(undefined);
+      const { result } = await mountWith([doc("a", "ready", "1"), doc("b", "ready", "2")]);
+      expect([...result.current.selected].sort()).toEqual(["a", "b"]);
+
+      let removed = false;
+      await act(async () => {
+        removed = await result.current.remove("a");
+      });
+
+      expect(removed).toBe(true);
+      expect(mockedDelete).toHaveBeenCalledWith("a");
+      expect(result.current.documents.map((d) => d.id)).toEqual(["b"]);
+      expect([...result.current.selected]).toEqual(["b"]);
+      expect(result.current.removing.size).toBe(0);
+      expect(result.current.removeErrors.size).toBe(0);
+    });
+
+    it("marks the id as removing until the request settles", async () => {
+      const request = deferred<void>();
+      mockedDelete.mockReturnValue(request.promise);
+      const { result } = await mountWith([doc("a")]);
+
+      let outcome: Promise<boolean> = Promise.resolve(false);
+      act(() => {
+        outcome = result.current.remove("a");
+      });
+      expect([...result.current.removing]).toEqual(["a"]);
+
+      await act(async () => {
+        request.resolve();
+        await outcome;
+      });
+      expect(result.current.removing.size).toBe(0);
+    });
+
+    it("does not bring the document back when a poll that started before removal resolves", async () => {
+      const slow = deferred<DocumentInfo[]>();
+      mockedDelete.mockResolvedValue(undefined);
+      const { result } = await mountWith([doc("a", "processing", "1"), doc("b", "ready", "2")]);
+      mockedList.mockReturnValueOnce(slow.promise);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+
+      await act(async () => {
+        await result.current.remove("a");
+      });
+      await act(async () => {
+        slow.resolve([doc("a", "ready", "1"), doc("b", "ready", "2")]);
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(result.current.documents.map((d) => d.id)).toEqual(["b"]);
+      expect([...result.current.selected]).toEqual(["b"]);
+    });
+
+    it("keeps the document and reports the reason when the server refuses", async () => {
+      mockedDelete.mockRejectedValue(new ApiError(409, "document_in_use"));
+      const { result } = await mountWith([doc("a")]);
+
+      let removed = true;
+      await act(async () => {
+        removed = await result.current.remove("a");
+      });
+
+      expect(removed).toBe(false);
+      expect(result.current.documents.map((d) => d.id)).toEqual(["a"]);
+      expect([...result.current.selected]).toEqual(["a"]);
+      expect(result.current.removeErrors.get("a")).toBe(
+        "An answer is still being written from this document. Remove it when the answer is finished.",
+      );
+      expect(result.current.removing.size).toBe(0);
+    });
+
+    it("clears an earlier error when the same document is removed again", async () => {
+      mockedDelete.mockRejectedValueOnce(new ApiError(409, "document_in_use"));
+      const { result } = await mountWith([doc("a")]);
+      await act(async () => {
+        await result.current.remove("a");
+      });
+      expect(result.current.removeErrors.has("a")).toBe(true);
+
+      mockedDelete.mockResolvedValueOnce(undefined);
+      await act(async () => {
+        await result.current.remove("a");
+      });
+
+      expect(result.current.removeErrors.has("a")).toBe(false);
+      expect(result.current.documents).toEqual([]);
+    });
+
+    it("sends one request when the same document is removed twice at once", async () => {
+      const request = deferred<void>();
+      mockedDelete.mockReturnValue(request.promise);
+      const { result } = await mountWith([doc("a")]);
+
+      const outcomes: boolean[] = [];
+      await act(async () => {
+        const first: Promise<boolean> = result.current.remove("a");
+        const second: Promise<boolean> = result.current.remove("a");
+        outcomes.push(await second);
+        request.resolve();
+        outcomes.push(await first);
+      });
+
+      expect(mockedDelete).toHaveBeenCalledTimes(1);
+      expect(outcomes).toEqual([false, true]);
+    });
   });
 });
