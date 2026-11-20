@@ -88,6 +88,41 @@ describe("EvidencePanel", () => {
     expect(quote(ANNEX_QUOTE).className).not.toMatch(/highlighted/);
   });
 
+  it("shows the deleted text instead of a deleted source's quote, without the highlighter", () => {
+    const deleted: TurnSource[] = SOURCES.map((item: TurnSource) =>
+      item.label === "S1" ? { ...item, document_id: null, quote: "" } : item,
+    );
+    render(
+      <EvidencePanel turn={turn({ sources: deleted })} activeLabel="S1" activationCount={0} onActivate={vi.fn()} />,
+    );
+
+    const notice: HTMLElement = screen.getByText(
+      "This document was deleted, so its quote is no longer available.",
+    );
+    expect(notice.className).not.toMatch(/highlighted/);
+    expect(document.querySelector("[class*='highlighted']")).toBeNull();
+    expect(screen.queryByText("“”")).toBeNull();
+    const items: HTMLElement[] = within(
+      screen.getByRole("list", { name: "Cited passages" }),
+    ).getAllByRole("listitem");
+    expect(items[0].textContent).toContain("employment-contract.pdf, page 4");
+    expect(quote(ANNEX_QUOTE).className).not.toMatch(/highlighted/);
+  });
+
+  it("keeps a deleted first source as the default active item", () => {
+    const deleted: TurnSource[] = SOURCES.map((item: TurnSource) =>
+      item.label === "S1" ? { ...item, document_id: null, quote: "" } : item,
+    );
+    render(
+      <EvidencePanel turn={turn({ sources: deleted })} activeLabel={null} activationCount={0} onActivate={vi.fn()} />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Highlight source 1" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(document.querySelector("[class*='highlighted']")).toBeNull();
+  });
+
   it("scrolls the highlighted item into view, again for another turn", () => {
     const scrollIntoView = vi.fn();
     Object.defineProperty(Element.prototype, "scrollIntoView", {

@@ -110,6 +110,10 @@ fake generation provider):
    session storage through `GET /api/conversations/{id}`). This step needs the real generation
    provider (`SOURCEHAVEN_GENERATION_PROVIDER=openai`): the fake one streams its whole answer at
    once, so the turn completes before a reload can interrupt it.
+4. Remove a document that an answer cites, from its row in "Your documents". Its citation in the
+   answer turns grey and is read as "document deleted", the evidence panel shows "This document was
+   deleted, so its quote is no longer available." instead of the quote, and the line under the
+   answer says a source was deleted.
 
 ## Current limitations
 

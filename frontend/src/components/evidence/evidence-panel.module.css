@@ -84,6 +84,14 @@
   overflow-wrap: anywhere;
 }
 
+.deletedQuote {
+  margin: 0;
+  color: var(--graphite);
+  font-size: 15px;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
 /*
  * The highlighter sweeps left to right by growing background-size. Only an image can be sized,
  * so the colour is drawn as a gradient with a hard stop: the lower half of each line, like a pen.

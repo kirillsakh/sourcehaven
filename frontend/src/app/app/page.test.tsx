@@ -60,11 +60,13 @@ function readyDocument(id: string, name: string): DocumentInfo {
   };
 }
 
+const DOCUMENT_IDS: Record<string, string> = { "employment-contract.pdf": "1", "annex-b.pdf": "2" };
+
 function source(label: string, cited: boolean, name: string, page: number, quote: string): TurnSource {
   return {
     label,
     cited,
-    document_id: name,
+    document_id: DOCUMENT_IDS[name] ?? name,
     document_name: name,
     pages: { start: page, end: page },
     quote,
@@ -335,8 +337,8 @@ describe("AppPage", () => {
         {
           type: "sources",
           sources: [
-            { ...source("S1", true, "employment-contract.pdf", 4, CONTRACT_QUOTE), document_id: "1" },
-            { ...source("S2", true, "annex-b.pdf", 2, ANNEX_QUOTE), document_id: "2" },
+            source("S1", true, "employment-contract.pdf", 4, CONTRACT_QUOTE),
+            source("S2", true, "annex-b.pdf", 2, ANNEX_QUOTE),
           ],
           invalidCitationLabels: [],
         },
@@ -362,6 +364,32 @@ describe("AppPage", () => {
     await waitFor(() => expect(within(evidence).queryByText(`“${ANNEX_QUOTE}”`)).toBeNull());
     expect(within(evidence).getByText(`“${CONTRACT_QUOTE}”`)).toBeTruthy();
     expect(mockedDelete).toHaveBeenCalledExactlyOnceWith("2");
+  });
+
+  it("shows the deleted text for the highlighted quote when its document is removed", async () => {
+    mockedDelete.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    await askWithCitations(user);
+    const evidence: HTMLElement = screen.getByRole("region", { name: "Evidence" });
+    expect(within(evidence).getByText(`“${CONTRACT_QUOTE}”`).className).toMatch(/highlighted/);
+
+    await user.click(screen.getByRole("button", { name: "Remove employment-contract.pdf" }));
+    await user.click(
+      within(screen.getByRole("group", { name: /^Remove .+\?/ })).getByRole("button", {
+        name: "Remove",
+      }),
+    );
+
+    expect(
+      await within(evidence).findByText(
+        "This document was deleted, so its quote is no longer available.",
+      ),
+    ).toBeTruthy();
+    expect(within(evidence).queryByText(`“${CONTRACT_QUOTE}”`)).toBeNull();
+    expect(evidence.querySelector("[class*='highlighted']")).toBeNull();
+    expect(screen.getByRole("button", { name: "Source 1, document deleted" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Source 2" })).toBeTruthy();
+    expect(screen.getByText("A source of this answer was deleted.")).toBeTruthy();
   });
 
   it("replaces the columns with an alert when the session cannot start", async () => {

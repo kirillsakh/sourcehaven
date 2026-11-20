@@ -10,6 +10,7 @@ function renderAnswer(
   knownLabels: string[],
   options: {
     activeLabel?: string | null;
+    deletedLabels?: string[];
     onCitation?: (label: string) => void;
     streaming?: boolean;
   } = {},
@@ -18,6 +19,7 @@ function renderAnswer(
     <AnswerMarkdown
       text={text}
       knownLabels={new Set(knownLabels)}
+      deletedLabels={new Set(options.deletedLabels ?? [])}
       activeLabel={options.activeLabel ?? null}
       onCitation={options.onCitation ?? vi.fn()}
       streaming={options.streaming ?? false}
@@ -51,6 +53,7 @@ describe("AnswerMarkdown", () => {
       <AnswerMarkdown
         text="Three months"
         knownLabels={new Set()}
+        deletedLabels={new Set()}
         activeLabel={null}
         onCitation={vi.fn()}
         streaming={false}
@@ -66,6 +69,20 @@ describe("AnswerMarkdown", () => {
     await userEvent.click(screen.getByRole("button", { name: "Source 2" }));
 
     expect(onCitation).toHaveBeenCalledExactlyOnceWith("S2");
+  });
+
+  it("names a citation of a deleted document and still activates it", async () => {
+    const onCitation = vi.fn();
+    renderAnswer("one [S1] two [S2]", ["S1", "S2"], { deletedLabels: ["S1"], onCitation });
+
+    const deleted: HTMLElement = screen.getByRole("button", { name: "Source 1, document deleted" });
+    expect(deleted.textContent).toBe("[1]");
+    expect(deleted.className).toMatch(/deleted/);
+    expect(screen.getByRole("button", { name: "Source 2" }).className).not.toMatch(/deleted/);
+
+    await userEvent.click(deleted);
+
+    expect(onCitation).toHaveBeenCalledExactlyOnceWith("S1");
   });
 
   it("marks the active citation", () => {

@@ -18,3 +18,17 @@
   background: var(--highlighter);
   color: var(--ink);
 }
+
+/* A deleted source has nothing to highlight, so it is only underlined. */
+.deleted {
+  color: var(--graphite);
+}
+
+.deleted:hover,
+.deleted:focus-visible,
+.deleted[aria-pressed="true"] {
+  background: none;
+  color: var(--graphite);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

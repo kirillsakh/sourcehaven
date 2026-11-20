@@ -12,19 +12,21 @@ function AnswerHeading({ children }: { children?: ReactNode }): ReactElement {
 
 /**
  * Render an answer's Markdown without raw HTML, links or images, with known `[S n]` markers as
- * citation buttons.
+ * citation buttons. A label in `deletedLabels` stays a button but is drawn and named as deleted.
  *
  * While `streaming`, a blinking caret is drawn after the last block of the text.
  */
 export function AnswerMarkdown({
   text,
   knownLabels,
+  deletedLabels,
   activeLabel,
   onCitation,
   streaming,
 }: {
   text: string;
   knownLabels: ReadonlySet<string>;
+  deletedLabels: ReadonlySet<string>;
   activeLabel: string | null;
   onCitation: (label: string) => void;
   streaming: boolean;
@@ -42,6 +44,7 @@ export function AnswerMarkdown({
                 <CitationButton
                   label={label}
                   active={label === activeLabel}
+                  deleted={deletedLabels.has(label)}
                   onActivate={onCitation}
                 />
               );

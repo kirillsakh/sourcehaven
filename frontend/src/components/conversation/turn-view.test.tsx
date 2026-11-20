@@ -141,6 +141,50 @@ describe("TurnView", () => {
     expect(screen.getByText("Sources from 1 document")).toBeTruthy();
   });
 
+  it("says a source was deleted and names its citation accordingly", () => {
+    renderTurn(
+      turn({
+        text: "One [S1] two [S2].",
+        sources: [
+          source("S1", "contract.pdf", { document_id: null, quote: "" }),
+          source("S2", "annex-b.pdf"),
+        ],
+      }),
+    );
+
+    expect(screen.getByText("A source of this answer was deleted.")).toBeTruthy();
+    expect(screen.queryByText("Some sources of this answer were deleted.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Source 1, document deleted" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Source 2" })).toBeTruthy();
+  });
+
+  it("uses the plural when several cited sources were deleted", () => {
+    renderTurn(
+      turn({
+        text: "One [S1] two [S2].",
+        sources: [
+          source("S1", "contract.pdf", { document_id: null, quote: "" }),
+          source("S2", "annex-b.pdf", { document_id: null, quote: "" }),
+        ],
+      }),
+    );
+
+    expect(screen.getByText("Some sources of this answer were deleted.")).toBeTruthy();
+  });
+
+  it("ignores a deleted source that the answer does not cite", () => {
+    renderTurn(
+      turn({
+        sources: [
+          source("S1", "contract.pdf"),
+          source("S2", "other.pdf", { cited: false, document_id: null, quote: "" }),
+        ],
+      }),
+    );
+
+    expect(screen.queryByText(/were? deleted/)).toBeNull();
+  });
+
   it("calls onShowEvidence from the Show evidence button", async () => {
     const handlers: Handlers = renderTurn(turn(), { active: true });
 
