@@ -7,7 +7,7 @@ COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_PYTHON_DOWNLOADS=never \
     UV_PYTHON_PREFERENCE=only-system
 WORKDIR /build
-COPY pyproject.toml uv.lock README.md ./
+COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY src ./src
 # --no-default-groups: the "test" group is a default group, so --no-dev alone would still export it.
 # --no-emit-project: the application wheel is installed separately, without its dependencies.
