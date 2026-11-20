@@ -7,7 +7,7 @@ from sourcehaven.generation.prompts import LabelledEvidence
 
 # Labels are matched exactly as written. `[s1]`, `[S 1]` and `[S1,S2]` are not citations, and
 # `[S01]` is the label "S01", which differs from the supplied "S1" and so is reported as invalid.
-_CITATION: re.Pattern[str] = re.compile(r"\[S([0-9]+)\]")
+CITATION_LABEL: re.Pattern[str] = re.compile(r"\[S([0-9]+)\]")
 _SUPPLIED_LABEL: re.Pattern[str] = re.compile(r"S([0-9]+)")
 QUOTE_SNAPSHOT_CHARACTERS: int = 300
 
@@ -60,7 +60,7 @@ def validate_citations(text: str, supplied: Sequence[LabelledEvidence]) -> Citat
         ValueError: If a supplied label is not `S` followed by ASCII digits, or two supplied
             passages share a label.
     """
-    found: list[str] = [f"S{digits}" for digits in _CITATION.findall(text)]
+    found: list[str] = [f"S{digits}" for digits in CITATION_LABEL.findall(text)]
     ordered: list[LabelledEvidence] = sorted(supplied, key=_number_of)
     known: set[str] = {item.label for item in ordered}
     if len(known) != len(ordered):
