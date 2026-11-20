@@ -14,10 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sourcehaven.api.schemas import QuestionRequest
 from sourcehaven.composition import ContainerOverrides
 from sourcehaven.domain.models import OwnerScope
+from sourcehaven.ingestion import pipeline
 from sourcehaven.qa.service import QAService, TurnStream
 from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.files import LocalFileStore
 from sourcehaven.storage.models import Chunk, Document, DocumentVersion, IngestionJob, TurnSource
+from sourcehaven.storage.repositories.chunks import replace_version_chunks
 from sourcehaven.storage.repositories.conversations import (
     NewTurn,
     add_generating_turn,
@@ -28,6 +30,7 @@ from tests.support.clock import FakeClock
 from tests.support.db import TestDatabaseUrls
 from tests.support.jobs import retire_all_jobs
 from tests.support.visitors import ReadyVisitorFactory, Visitor
+from tests.support.waiting import eventually
 
 pytestmark = pytest.mark.integration
 
@@ -357,3 +360,108 @@ async def test_question_after_removal_finds_the_document_gone(
     with pytest.raises(LookupError, match="document"):
         await asyncio.wait_for(question, TIMEOUT)
     assert (await visitor.conversation())["turns"] == []
+
+
+PIPELINE_LOGGER: Final[str] = "sourcehaven.ingestion.pipeline"
+
+
+async def _progress_stage(visitor: Visitor, document_id: str) -> object:
+    progress: object = (await visitor.document(document_id))["progress"]
+    return progress.get("stage") if isinstance(progress, dict) else None
+
+
+def _pipeline_messages(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [record.getMessage() for record in caplog.records if record.name == PIPELINE_LOGGER]
+
+
+async def test_publish_waits_for_removal_then_abandons(
+    visitor: Visitor, caplog: pytest.LogCaptureFixture
+) -> None:
+    doc: str = (await visitor.upload("facts_small_en.pdf")).json()["id"]
+    owner: OwnerScope = await visitor.owner()
+    document: UUID = UUID(doc)
+    caplog.set_level(logging.INFO, logger=PIPELINE_LOGGER)
+
+    worker: asyncio.Task[bool]
+    async with owner_session(visitor.container.sessions, owner) as removal_session:
+        # The removal's first step, taken before the worker starts so it already holds the lock
+        # when the worker reaches its publish transaction.
+        await removal_session.scalar(
+            select(Document.id)
+            .where(Document.owner_id == owner.owner_id, Document.id == document)
+            .with_for_update()
+        )
+        worker = asyncio.create_task(run_once(visitor.container))
+        try:
+            await eventually(
+                lambda: _progress_stage(visitor, doc),
+                until=lambda stage: stage == "publishing",
+                timeout=TIMEOUT,
+            )
+            done, _pending = await asyncio.wait({worker}, timeout=BLOCKED_FOR)
+            assert not done, "publishing must wait for the removal that has locked the document"
+            outcome: RemovalOutcome = await delete_document(
+                removal_session, owner, document, now=visitor.container.clock()
+            )
+            assert outcome is RemovalOutcome.REMOVED
+        except BaseException:
+            worker.cancel()
+            raise
+
+    assert await asyncio.wait_for(worker, TIMEOUT) is True
+    assert await _row_counts(visitor, doc) == {
+        "documents": 0,
+        "versions": 0,
+        "jobs": 0,
+        "chunks": 0,
+    }
+    messages: list[str] = _pipeline_messages(caplog)
+    assert len(messages) == 1 and messages[0].endswith("lost its lease; abandoning attempt"), (
+        messages
+    )
+
+
+async def test_removal_waits_for_publish_then_removes_published_chunks(
+    visitor: Visitor, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc: str = (await visitor.upload("facts_small_en.pdf")).json()["id"]
+    owner: OwnerScope = await visitor.owner()
+    document: UUID = UUID(doc)
+    caplog.set_level(logging.INFO, logger=PIPELINE_LOGGER)
+    publishing: asyncio.Event = asyncio.Event()
+    release: asyncio.Event = asyncio.Event()
+
+    async def replace_when_released(
+        session: AsyncSession, scope: OwnerScope, version_id: UUID, chunks: Sequence[Chunk]
+    ) -> None:
+        publishing.set()
+        await release.wait()
+        await replace_version_chunks(session, scope, version_id, chunks)
+
+    # Pauses the publish transaction after it has taken its locks and before it writes chunks.
+    monkeypatch.setattr(pipeline, "replace_version_chunks", replace_when_released)
+    worker: asyncio.Task[bool] = asyncio.create_task(run_once(visitor.container))
+    removal: asyncio.Task[RemovalOutcome] | None = None
+    try:
+        await asyncio.wait_for(publishing.wait(), TIMEOUT)
+        removal = asyncio.create_task(_remove(visitor, document, owner))
+        done, _pending = await asyncio.wait({removal}, timeout=BLOCKED_FOR)
+        assert not done, "removal must wait for the publish that has locked the document"
+    except BaseException:
+        worker.cancel()
+        if removal is not None:
+            removal.cancel()
+        raise
+    finally:
+        release.set()
+
+    assert await asyncio.wait_for(worker, TIMEOUT) is True
+    assert await asyncio.wait_for(removal, TIMEOUT) is RemovalOutcome.REMOVED
+    assert await _row_counts(visitor, doc) == {
+        "documents": 0,
+        "versions": 0,
+        "jobs": 0,
+        "chunks": 0,
+    }
+    messages: list[str] = _pipeline_messages(caplog)
+    assert len(messages) == 1 and messages[0].endswith("succeeded"), messages

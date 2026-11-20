@@ -32,7 +32,6 @@ from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.files import FileStore
 from sourcehaven.storage.models import Chunk, Document, DocumentVersion, IngestionJob
 from sourcehaven.storage.repositories.chunks import replace_version_chunks
-from sourcehaven.storage.repositories.documents import get_document
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -238,10 +237,14 @@ class IngestionPipeline:
             for draft, vector in zip(prepared.drafts, vectors, strict=True)
         ]
         async with owner_session(self._sessions, job.owner) as session:
+            document: Document | None = await _lock_document(
+                session, job.owner, attempt.document_id
+            )
+            if document is None:
+                raise _LeaseLost
             row: IngestionJob = await _fenced_job(session, job, attempt)
             version: DocumentVersion | None = await _get_version(session, job.owner, job.version_id)
-            document: Document | None = await get_document(session, job.owner, attempt.document_id)
-            if version is None or document is None:
+            if version is None:
                 raise _LeaseLost
             await replace_version_chunks(session, job.owner, job.version_id, chunks)
             version.state = "ready"
@@ -300,6 +303,22 @@ async def _lock_job(session: AsyncSession, owner: OwnerScope, job_id: UUID) -> I
         .with_for_update()
     )
     return job
+
+
+async def _lock_document(
+    session: AsyncSession, owner: OwnerScope, document_id: UUID
+) -> Document | None:
+    """Lock the document row so that it cannot be removed until the transaction ends.
+
+    Removal locks the document before its cascade reaches the job row, so publishing takes the
+    document before the job too; the opposite order lets the two deadlock.
+    """
+    document: Document | None = await session.scalar(
+        select(Document)
+        .where(Document.owner_id == owner.owner_id, Document.id == document_id)
+        .with_for_update(key_share=True)  # renders FOR NO KEY UPDATE on PostgreSQL
+    )
+    return document
 
 
 async def _get_version(

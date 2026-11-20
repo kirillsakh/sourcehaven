@@ -108,8 +108,13 @@ returning an outcome enum].
 ### 4.3 Concurrency
 
 - **Ingestion in progress:** deleting cascades the job row; the pipeline already abandons work when
-  the job disappears (`_LeaseLost`). If the worker's publish transaction holds the job row, the delete
-  waits for it and then cascades the freshly published chunks.
+  the job disappears (`_LeaseLost`). Removal and the worker's publish transaction take their locks in
+  the same order, document row first and job row second: removal locks the document `FOR UPDATE`
+  before its cascade reaches the job, and publish locks the document `FOR NO KEY UPDATE` (with the
+  owner predicate) before fencing the job. Taking the job first would let the two deadlock. If
+  publish locks the document first, the delete waits for it and then cascades the freshly published
+  chunks; if removal locks first, publish waits, finds the document gone and abandons the attempt as
+  a lost lease.
 - **Questions:** `QaService._start` checks scope and inserts the `generating` turn in one
   transaction. That scope check now takes `FOR SHARE` locks on the selected document rows [C], so it
   and a removal serialise: if the question locks first, the removal waits, then sees the turn and
