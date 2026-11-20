@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
@@ -15,7 +16,12 @@ from sourcehaven.domain.models import OwnerScope
 from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.files import LocalFileStore
 from sourcehaven.storage.models import Chunk, Document, DocumentVersion, IngestionJob, TurnSource
-from sourcehaven.storage.repositories.conversations import NewTurn, add_generating_turn
+from sourcehaven.storage.repositories.conversations import (
+    NewTurn,
+    add_generating_turn,
+    document_readiness,
+)
+from sourcehaven.storage.repositories.documents import RemovalOutcome, delete_document
 from sourcehaven.worker.runner import run_once
 from tests.support.clock import FakeClock
 from tests.support.db import TestDatabaseUrls
@@ -28,6 +34,8 @@ NOT_FOUND_BODY: Final[dict[str, object]] = {"code": "not_found"}
 IN_USE_BODY: Final[dict[str, object]] = {"code": "document_in_use"}
 RECENT: Final[timedelta] = timedelta(minutes=1)
 STALE: Final[timedelta] = timedelta(minutes=11)
+BLOCKED_FOR: Final[float] = 0.3
+TIMEOUT: Final[float] = 10.0
 
 
 @pytest.fixture(autouse=True)
@@ -272,3 +280,75 @@ async def test_file_removal_failure_still_succeeds(
     assert len(failures) == 1
     assert doc in failures[0].getMessage()
     assert "facts_small_en" not in caplog.text
+
+
+async def _remove(visitor: Visitor, document_id: UUID, owner: OwnerScope) -> RemovalOutcome:
+    async with owner_session(visitor.container.sessions, owner) as session:
+        return await delete_document(session, owner, document_id, now=visitor.container.clock())
+
+
+async def test_question_scope_check_serialises_with_removal(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    visitor, (doc,) = await ready_visitor("facts_small_en.pdf")
+    owner: OwnerScope = await visitor.owner()
+    assert visitor.conversation_id is not None
+    document: UUID = UUID(doc)
+    turn: NewTurn = NewTurn(
+        id=uuid7(),
+        owner=owner,
+        conversation_id=UUID(visitor.conversation_id),
+        client_request_id=uuid4(),
+        question="warranty?",
+        selected_document_ids=[document],
+        model=None,
+        created_at=visitor.container.clock(),
+    )
+
+    async with owner_session(visitor.container.sessions, owner) as question_session:
+        assert await document_readiness(question_session, owner, [document], lock=True) == {
+            document: True
+        }
+        removal: asyncio.Task[RemovalOutcome] = asyncio.create_task(
+            _remove(visitor, document, owner)
+        )
+        try:
+            done, _pending = await asyncio.wait({removal}, timeout=BLOCKED_FOR)
+            assert not done, "removal must wait for the question that has locked the document"
+            await add_generating_turn(question_session, turn)
+        except BaseException:
+            removal.cancel()
+            raise
+
+    assert await asyncio.wait_for(removal, TIMEOUT) is RemovalOutcome.IN_USE
+    assert (await visitor.document(doc))["state"] == "ready"
+
+
+async def test_question_scope_check_after_removal_finds_the_document_gone(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    visitor, (doc,) = await ready_visitor("facts_small_en.pdf")
+    owner: OwnerScope = await visitor.owner()
+    document: UUID = UUID(doc)
+
+    async def check_scope() -> dict[UUID, bool]:
+        async with owner_session(visitor.container.sessions, owner) as session:
+            return await document_readiness(session, owner, [document], lock=True)
+
+    check: asyncio.Task[dict[UUID, bool]]
+    async with owner_session(visitor.container.sessions, owner) as removal_session:
+        outcome: RemovalOutcome = await delete_document(
+            removal_session, owner, document, now=visitor.container.clock()
+        )
+        assert outcome is RemovalOutcome.REMOVED
+        check = asyncio.create_task(check_scope())
+        try:
+            done, _pending = await asyncio.wait({check}, timeout=BLOCKED_FOR)
+            assert not done, (
+                "the scope check must wait for the removal that has locked the document"
+            )
+        except BaseException:
+            check.cancel()
+            raise
+
+    assert await asyncio.wait_for(check, TIMEOUT) == {}

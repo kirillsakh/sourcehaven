@@ -12,7 +12,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID, uuid7
 
-from sqlalchemy import Row, select, update
+from sqlalchemy import Row, Select, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sourcehaven.domain.models import Citation, OwnerScope
@@ -101,23 +101,37 @@ async def conversation_exists(
 
 
 async def document_readiness(
-    session: AsyncSession, owner: OwnerScope, document_ids: Sequence[UUID]
+    session: AsyncSession,
+    owner: OwnerScope,
+    document_ids: Sequence[UUID],
+    *,
+    lock: bool = False,
 ) -> dict[UUID, bool]:
     """Map each of the owner's listed documents to whether its current version is ready.
 
     Ids that are unknown or belong to another owner are absent from the result.
+
+    Args:
+        session: Session of the owner's transaction.
+        owner: The owner whose documents are listed.
+        document_ids: The documents to look up.
+        lock: Hold a shared row lock on the found documents until the transaction ends, so that
+            a removal of any of them waits for this transaction and cannot slip in between the
+            readiness check and the insert of a turn that selects them.
     """
-    rows: Sequence[Row[UUID, str | None]] = (
-        await session.execute(
-            select(Document.id, DocumentVersion.state)
-            .outerjoin(
-                DocumentVersion,
-                (DocumentVersion.owner_id == owner.owner_id)
-                & (DocumentVersion.id == Document.current_version_id),
-            )
-            .where(Document.owner_id == owner.owner_id, Document.id.in_(document_ids))
+    statement: Select[UUID, str | None] = (
+        select(Document.id, DocumentVersion.state)
+        .outerjoin(
+            DocumentVersion,
+            (DocumentVersion.owner_id == owner.owner_id)
+            & (DocumentVersion.id == Document.current_version_id),
         )
-    ).all()
+        .where(Document.owner_id == owner.owner_id, Document.id.in_(document_ids))
+    )
+    if lock:
+        # The version table is outer-joined, so only the documents can be locked.
+        statement = statement.with_for_update(read=True, of=Document)
+    rows: Sequence[Row[UUID, str | None]] = (await session.execute(statement)).all()
     return {document_id: state == "ready" for document_id, state in rows}
 
 

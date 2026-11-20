@@ -234,7 +234,9 @@ class QAService:
     ) -> None:
         if not await conversation_exists(session, owner, conversation_id):
             raise LookupError("conversation")
-        readiness: dict[UUID, bool] = await document_readiness(session, owner, document_ids)
+        readiness: dict[UUID, bool] = await document_readiness(
+            session, owner, document_ids, lock=True
+        )
         if len(readiness) != len(document_ids):
             raise LookupError("document")
         not_ready: list[UUID] = [key for key in document_ids if not readiness[key]]
