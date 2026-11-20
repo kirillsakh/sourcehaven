@@ -11,15 +11,16 @@ import pytest
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sourcehaven.api.schemas import QuestionRequest
 from sourcehaven.composition import ContainerOverrides
 from sourcehaven.domain.models import OwnerScope
+from sourcehaven.qa.service import QAService, TurnStream
 from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.files import LocalFileStore
 from sourcehaven.storage.models import Chunk, Document, DocumentVersion, IngestionJob, TurnSource
 from sourcehaven.storage.repositories.conversations import (
     NewTurn,
     add_generating_turn,
-    document_readiness,
 )
 from sourcehaven.storage.repositories.documents import RemovalOutcome, delete_document
 from sourcehaven.worker.runner import run_once
@@ -306,9 +307,9 @@ async def test_question_scope_check_serialises_with_removal(
     )
 
     async with owner_session(visitor.container.sessions, owner) as question_session:
-        assert await document_readiness(question_session, owner, [document], lock=True) == {
-            document: True
-        }
+        await QAService._check_scope(
+            question_session, owner, UUID(visitor.conversation_id), [document]
+        )
         removal: asyncio.Task[RemovalOutcome] = asyncio.create_task(
             _remove(visitor, document, owner)
         )
@@ -324,31 +325,35 @@ async def test_question_scope_check_serialises_with_removal(
     assert (await visitor.document(doc))["state"] == "ready"
 
 
-async def test_question_scope_check_after_removal_finds_the_document_gone(
+async def test_question_after_removal_finds_the_document_gone(
     ready_visitor: ReadyVisitorFactory,
 ) -> None:
     visitor, (doc,) = await ready_visitor("facts_small_en.pdf")
     owner: OwnerScope = await visitor.owner()
+    assert visitor.conversation_id is not None
+    conversation_id: UUID = UUID(visitor.conversation_id)
     document: UUID = UUID(doc)
+    request: QuestionRequest = QuestionRequest(
+        client_request_id=uuid4(), kind="question", question="warranty?", document_ids=[document]
+    )
 
-    async def check_scope() -> dict[UUID, bool]:
-        async with owner_session(visitor.container.sessions, owner) as session:
-            return await document_readiness(session, owner, [document], lock=True)
+    async def ask() -> TurnStream:
+        return await QAService(visitor.container).answer(owner, conversation_id, request)
 
-    check: asyncio.Task[dict[UUID, bool]]
+    question: asyncio.Task[TurnStream]
     async with owner_session(visitor.container.sessions, owner) as removal_session:
         outcome: RemovalOutcome = await delete_document(
             removal_session, owner, document, now=visitor.container.clock()
         )
         assert outcome is RemovalOutcome.REMOVED
-        check = asyncio.create_task(check_scope())
+        question = asyncio.create_task(ask())
         try:
-            done, _pending = await asyncio.wait({check}, timeout=BLOCKED_FOR)
-            assert not done, (
-                "the scope check must wait for the removal that has locked the document"
-            )
+            done, _pending = await asyncio.wait({question}, timeout=BLOCKED_FOR)
+            assert not done, "the question must wait for the removal that has locked the document"
         except BaseException:
-            check.cancel()
+            question.cancel()
             raise
 
-    assert await asyncio.wait_for(check, TIMEOUT) == {}
+    with pytest.raises(LookupError, match="document"):
+        await asyncio.wait_for(question, TIMEOUT)
+    assert (await visitor.conversation())["turns"] == []
