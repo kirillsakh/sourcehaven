@@ -85,6 +85,13 @@ npm --prefix frontend run gen:api   # regenerate src/lib/api-types.ts from the F
 `gen:api` runs `uv run sourcehaven openapi` with the offline fake providers and needs no secrets.
 Commit the regenerated `api-types.ts` whenever an API schema changes; CI fails if it is stale.
 
+The `/app` screen has three columns at 1280 px and wider: documents, conversation and evidence. From
+800 to 1279 px the evidence column becomes a drawer (a native `<dialog>`) that opens from a citation
+or "Show evidence"; below 800 px the page is one column, the documents collapse into a disclosure at
+the top, and the drawer fills the screen. Styles live in `src/app/globals.css` (colour and type
+tokens, dark mode and the focus ring) and in one CSS Module per component. Component tests run under
+jsdom (`// @vitest-environment jsdom`) with Testing Library; pure logic tests run in plain Node.
+
 ### Manual browser check
 
 With the dev stack running, open `http://127.0.0.1:8080/app` and check (steps 1 and 2 work with the

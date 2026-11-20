@@ -74,6 +74,58 @@ async function* events(...items: TurnEvent[]): AsyncGenerator<TurnEvent> {
   }
 }
 
+interface Viewport {
+  showModal: ReturnType<typeof vi.fn>;
+}
+
+// jsdom has neither matchMedia nor the modal dialog methods; width drives the min-width queries.
+function setViewport(width: number): Viewport {
+  const showModal = vi.fn(function (this: HTMLDialogElement): void {
+    this.setAttribute("open", "");
+  });
+  HTMLDialogElement.prototype.showModal = showModal;
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement): void {
+    this.removeAttribute("open");
+  };
+  vi.stubGlobal(
+    "matchMedia",
+    (query: string): MediaQueryList =>
+      ({
+        matches: width >= Number(/min-width:\s*(\d+)px/.exec(query)?.[1] ?? 0),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }) as unknown as MediaQueryList,
+  );
+  return { showModal };
+}
+
+async function askWithCitations(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+  mockedList.mockResolvedValue([
+    readyDocument("1", "employment-contract.pdf"),
+    readyDocument("2", "annex-b.pdf"),
+  ]);
+  mockedStream.mockReturnValue(
+    events(
+      { type: "delta", text: "Three months [S1], shortened by agreement [S2]." },
+      {
+        type: "sources",
+        sources: [
+          source("S1", true, "employment-contract.pdf", 4, CONTRACT_QUOTE),
+          source("S2", true, "annex-b.pdf", 2, ANNEX_QUOTE),
+        ],
+        invalidCitationLabels: [],
+      },
+      { type: "done" },
+    ),
+  );
+  render(<AppPage />);
+  await screen.findByText("Answering from 2 of 2 documents");
+  await user.type(screen.getByLabelText("Question"), "How long is the notice period?");
+  await user.click(screen.getByRole("button", { name: "Ask" }));
+  await screen.findByRole("button", { name: "Show evidence" });
+}
+
 beforeEach(() => {
   window.sessionStorage.clear();
   mockedSession.mockResolvedValue({ limits } as Awaited<ReturnType<typeof createSession>>);
@@ -83,6 +135,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.resetAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("AppPage", () => {
@@ -171,5 +224,117 @@ describe("AppPage", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Sourcehaven" })).toBeTruthy();
     await waitFor(() => expect(screen.queryByText("Your documents")).toBeNull());
     expect(mockedList).not.toHaveBeenCalled();
+  });
+
+  describe("evidence drawer", () => {
+    it("opens from a citation below the three-column width", async () => {
+      const { showModal } = setViewport(1024);
+      const user = userEvent.setup();
+      await askWithCitations(user);
+      expect(showModal).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: "Source 2" }));
+
+      expect(showModal).toHaveBeenCalledTimes(1);
+      const drawer: HTMLElement = screen.getByRole("dialog", { name: "Evidence" });
+      expect(within(drawer).getByText(`“${ANNEX_QUOTE}”`).className).toMatch(/highlighted/);
+    });
+
+    it("opens from Show evidence below the three-column width", async () => {
+      const { showModal } = setViewport(1024);
+      const user = userEvent.setup();
+      await askWithCitations(user);
+
+      await user.click(screen.getByRole("button", { name: "Show evidence" }));
+
+      expect(showModal).toHaveBeenCalledTimes(1);
+    });
+
+    it("closes with Close evidence", async () => {
+      setViewport(1024);
+      const user = userEvent.setup();
+      await askWithCitations(user);
+      await user.click(screen.getByRole("button", { name: "Show evidence" }));
+
+      await user.click(screen.getByRole("button", { name: "Close evidence" }));
+
+      expect(screen.queryByRole("dialog", { name: "Evidence" })).toBeNull();
+    });
+
+    it("stays closed at the three-column width, where the panel is already visible", async () => {
+      const { showModal } = setViewport(1440);
+      const user = userEvent.setup();
+      await askWithCitations(user);
+
+      await user.click(screen.getByRole("button", { name: "Source 2" }));
+      await user.click(screen.getByRole("button", { name: "Show evidence" }));
+
+      expect(showModal).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("documents disclosure", () => {
+    function disclosure(): HTMLDetailsElement {
+      const summary: HTMLElement = screen.getByText(/^Your documents, \d+ of 10$/);
+      return summary.closest("details") as HTMLDetailsElement;
+    }
+
+    it("is collapsed on a phone while documents exist and opens from the scope line", async () => {
+      setViewport(390);
+      mockedList.mockResolvedValue([
+        readyDocument("1", "employment-contract.pdf"),
+        readyDocument("2", "annex-b.pdf"),
+      ]);
+      const user = userEvent.setup();
+      render(<AppPage />);
+
+      await user.click(await screen.findByRole("button", { name: "Answering from 2 of 2 documents" }));
+
+      expect(disclosure().open).toBe(true);
+      expect(document.activeElement).toBe(
+        screen.getByRole("checkbox", { name: /employment-contract\.pdf/ }),
+      );
+    });
+
+    it("starts collapsed on a phone once documents are listed", async () => {
+      setViewport(390);
+      mockedList.mockResolvedValue([readyDocument("1", "employment-contract.pdf")]);
+      render(<AppPage />);
+
+      await screen.findByText("Answering from 1 of 1 document");
+
+      expect(screen.getByText("Your documents, 1 of 10")).toBeTruthy();
+      expect(disclosure().open).toBe(false);
+    });
+
+    it("is open on a phone while there are no documents", async () => {
+      setViewport(390);
+      render(<AppPage />);
+
+      await screen.findByText("Ask questions about your PDFs");
+
+      expect(disclosure().open).toBe(true);
+    });
+
+    it("keeps the reader's choice on a phone when the documents list changes", async () => {
+      setViewport(390);
+      const user = userEvent.setup();
+      render(<AppPage />);
+      await screen.findByText("Ask questions about your PDFs");
+
+      await user.click(screen.getByText("Your documents, 0 of 10"));
+
+      await waitFor(() => expect(disclosure().open).toBe(false));
+    });
+
+    it("is always open on wider screens", async () => {
+      setViewport(1024);
+      mockedList.mockResolvedValue([readyDocument("1", "employment-contract.pdf")]);
+      render(<AppPage />);
+
+      await screen.findByText("Answering from 1 of 1 document");
+
+      expect(disclosure().open).toBe(true);
+    });
   });
 });

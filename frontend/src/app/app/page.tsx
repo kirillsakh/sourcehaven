@@ -1,22 +1,40 @@
 "use client";
 
-import { useRef, type ReactElement, type RefObject } from "react";
+import {
+  useRef,
+  useState,
+  type ReactElement,
+  type RefObject,
+  type ToggleEvent,
+} from "react";
+import { flushSync } from "react-dom";
 
 import styles from "@/app/app/page.module.css";
 import { AppHeader } from "@/components/app-header";
 import { ConversationPanel } from "@/components/conversation/conversation-panel";
 import { DocumentsPanel } from "@/components/documents/documents-panel";
 import { DropOverlay } from "@/components/documents/drop-overlay";
+import { EvidenceDrawer } from "@/components/evidence/evidence-drawer";
 import { EvidencePanel } from "@/components/evidence/evidence-panel";
 import { useConversation, type ConversationState, type TurnViewModel } from "@/lib/use-conversation";
 import { useDocuments, type DocumentsState } from "@/lib/use-documents";
 import { useSession, type SessionState } from "@/lib/use-session";
+import {
+  matchesQuery,
+  TWO_COLUMN_QUERY,
+  useMediaQuery,
+  WIDE_LAYOUT_QUERY,
+} from "@/lib/viewport";
 
 export default function AppPage(): ReactElement {
   const { limits, error: startError }: SessionState = useSession();
   const documents: DocumentsState = useDocuments(limits);
   const conversation: ConversationState = useConversation(limits);
   const documentList: RefObject<HTMLUListElement | null> = useRef<HTMLUListElement | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [phoneDocumentsOpen, setPhoneDocumentsOpen] = useState<boolean | null>(null);
+  const twoColumns: boolean = useMediaQuery(TWO_COLUMN_QUERY);
+  const threeColumns: boolean = useMediaQuery(WIDE_LAYOUT_QUERY);
 
   const { activeTurnKey, activate }: ConversationState = conversation;
   const activeTurn: TurnViewModel | null =
@@ -24,7 +42,18 @@ export default function AppPage(): ReactElement {
   const uploadsAllowed: boolean =
     limits !== null && documents.documents.length < limits.max_documents;
 
+  const noDocuments: boolean = documents.documents.length === 0 && documents.uploads.length === 0;
+  // From 800px the documents are a plain column, so the disclosure is held open and its summary
+  // hidden; on a phone the reader's choice wins over the default of open until a file is added.
+  const documentsOpen: boolean = twoColumns || (phoneDocumentsOpen ?? noDocuments);
+
+  // A modal drawer left open would keep the page inert once the evidence column is showing.
+  if (threeColumns && drawerOpen) {
+    setDrawerOpen(false);
+  }
+
   function focusDocuments(): void {
+    flushSync(() => setPhoneDocumentsOpen(true));
     const list: HTMLUListElement | null = documentList.current;
     const checkbox: HTMLInputElement | null =
       list?.querySelector<HTMLInputElement>('input[type="checkbox"]:not(:disabled)') ?? null;
@@ -37,8 +66,18 @@ export default function AppPage(): ReactElement {
     }
   }
 
-  // Below the three-column width the evidence panel is not shown yet; this is where it opens.
-  function showEvidence(): void {}
+  function showEvidence(): void {
+    if (!matchesQuery(WIDE_LAYOUT_QUERY)) {
+      setDrawerOpen(true);
+    }
+  }
+
+  function activateTurn(turnKey: string, label?: string): void {
+    activate(turnKey, label);
+    if (label !== undefined) {
+      showEvidence();
+    }
+  }
 
   if (startError !== null) {
     return (
@@ -57,24 +96,41 @@ export default function AppPage(): ReactElement {
     <div className={styles.page}>
       <AppHeader />
       <main className={styles.columns}>
-        <div className={`${styles.column} ${styles.documents}`}>
-          {documents.pollError !== null && (
-            <p className={styles.alert} role="alert">
-              {documents.pollError}
-            </p>
-          )}
-          <DocumentsPanel
-            limits={limits}
-            documents={documents.documents}
-            uploads={documents.uploads}
-            selected={documents.selected}
-            onFiles={documents.addFiles}
-            onToggle={documents.toggle}
-            onSelectAll={documents.setAllSelected}
-            onDismissUpload={documents.dismissUpload}
-            listRef={documentList}
-          />
-        </div>
+        <details
+          className={`${styles.column} ${styles.documents}`}
+          open={documentsOpen}
+          onToggle={(event: ToggleEvent<HTMLDetailsElement>): void => {
+            // Toggle events also follow the open attribute rendered above; only a differing state
+            // is the reader's own click on the summary.
+            if (event.currentTarget.open !== documentsOpen) {
+              setPhoneDocumentsOpen(event.currentTarget.open);
+            }
+          }}
+        >
+          <summary className={styles.documentsSummary}>
+            {limits === null
+              ? "Your documents"
+              : `Your documents, ${documents.documents.length} of ${limits.max_documents}`}
+          </summary>
+          <div className={styles.documentsBody}>
+            {documents.pollError !== null && (
+              <p className={styles.alert} role="alert">
+                {documents.pollError}
+              </p>
+            )}
+            <DocumentsPanel
+              limits={limits}
+              documents={documents.documents}
+              uploads={documents.uploads}
+              selected={documents.selected}
+              onFiles={documents.addFiles}
+              onToggle={documents.toggle}
+              onSelectAll={documents.setAllSelected}
+              onDismissUpload={documents.dismissUpload}
+              listRef={documentList}
+            />
+          </div>
+        </details>
         <div className={`${styles.column} ${styles.conversation}`}>
           <ConversationPanel
             limits={limits}
@@ -91,7 +147,7 @@ export default function AppPage(): ReactElement {
               void conversation.ask(text, documentIds);
             }}
             onStop={conversation.stop}
-            onActivate={activate}
+            onActivate={activateTurn}
             onShowEvidence={showEvidence}
             onFiles={documents.addFiles}
             onScopeClick={focusDocuments}
@@ -105,6 +161,15 @@ export default function AppPage(): ReactElement {
           />
         </div>
       </main>
+      <EvidenceDrawer open={drawerOpen} onClose={(): void => setDrawerOpen(false)}>
+        {drawerOpen && (
+          <EvidencePanel
+            turn={activeTurn}
+            activeLabel={conversation.activeLabel}
+            onActivate={activateEvidence}
+          />
+        )}
+      </EvidenceDrawer>
       <DropOverlay enabled={uploadsAllowed} limits={limits} onFiles={documents.addFiles} />
     </div>
   );

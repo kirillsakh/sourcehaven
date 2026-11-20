@@ -25,9 +25,20 @@
 }
 
 .documents {
+  display: block;
+}
+
+.documentsSummary {
+  display: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.documentsBody {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .conversation {
@@ -57,5 +68,36 @@
 
   .evidence {
     display: block;
+  }
+}
+
+@media (max-width: 799px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .column + .column {
+    border-left: 0;
+  }
+
+  .documents {
+    max-height: 50dvh;
+    padding: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .documentsSummary {
+    display: list-item;
+    margin: 4px;
+    padding: 8px 12px 8px 28px;
+  }
+
+  .documentsBody {
+    padding: 0 16px 16px;
+  }
+
+  .conversation {
+    padding: 12px 16px;
   }
 }
