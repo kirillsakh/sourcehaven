@@ -45,11 +45,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-async function toApiError(response: Response): Promise<ApiError> {
+function apiErrorFromBody(status: number, bodyText: string): ApiError {
   let code = "unknown_error";
   let message: string | undefined;
   try {
-    const body: unknown = await response.json();
+    const body: unknown = JSON.parse(bodyText);
     if (isRecord(body)) {
       if (typeof body.code === "string") {
         code = body.code;
@@ -61,7 +61,11 @@ async function toApiError(response: Response): Promise<ApiError> {
   } catch {
     // A non-JSON error body (for example a proxy error page) keeps the generic code.
   }
-  return new ApiError(response.status, code, message);
+  return new ApiError(status, code, message);
+}
+
+async function toApiError(response: Response): Promise<ApiError> {
+  return apiErrorFromBody(response.status, await response.text());
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -92,6 +96,56 @@ export function uploadDocument(file: File): Promise<DocumentInfo> {
   const form = new FormData();
   form.append("file", file);
   return requestJson<DocumentInfo>("/api/documents", { method: "POST", body: form });
+}
+
+/**
+ * Upload a document and report byte progress.
+ *
+ * Uses `XMLHttpRequest` because `fetch` cannot report upload progress.
+ *
+ * Args:
+ *   file: The file to send as the multipart `file` field.
+ *   onProgress: Called with the fraction (0 to 1) of bytes sent while the size is known.
+ *   createRequest: Factory for the request object; a test seam.
+ *
+ * Returns:
+ *   The document the server created, or the existing one for a duplicate upload.
+ *
+ * Raises:
+ *   ApiError: If the server answers with a non-2xx status.
+ *   TypeError: If the network request fails.
+ */
+export function uploadDocumentWithProgress(
+  file: File,
+  onProgress: (fraction: number) => void,
+  createRequest: () => XMLHttpRequest = () => new XMLHttpRequest(),
+): Promise<DocumentInfo> {
+  return new Promise<DocumentInfo>((resolve, reject) => {
+    const request: XMLHttpRequest = createRequest();
+    request.open("POST", "/api/documents");
+    request.upload.onprogress = (event: ProgressEvent): void => {
+      if (event.lengthComputable) {
+        onProgress(event.loaded / event.total);
+      }
+    };
+    request.onload = (): void => {
+      if (request.status < 200 || request.status >= 300) {
+        reject(apiErrorFromBody(request.status, request.responseText));
+        return;
+      }
+      try {
+        resolve(JSON.parse(request.responseText) as DocumentInfo);
+      } catch {
+        reject(new ApiError(request.status, "unknown_error"));
+      }
+    };
+    request.onerror = (): void => {
+      reject(new TypeError("Network error"));
+    };
+    const form = new FormData();
+    form.append("file", file);
+    request.send(form);
+  });
 }
 
 export async function createConversation(): Promise<string> {
