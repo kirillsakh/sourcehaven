@@ -74,7 +74,7 @@ describe("TurnView", () => {
     expect(screen.getByText("Searching your documents…")).toBeTruthy();
   });
 
-  it("shows a hidden caret instead of the searching line once text arrives", () => {
+  it("shows a caret after the streamed text instead of the searching line", () => {
     const { container } = render(
       <TurnView
         turn={turn({ status: "generating", text: "Three", sources: [] })}
@@ -87,7 +87,24 @@ describe("TurnView", () => {
     );
 
     expect(screen.queryByText("Searching your documents…")).toBeNull();
-    expect(container.querySelector("[aria-hidden='true']")).not.toBeNull();
+    expect(container.querySelector("[class*='streaming'] > p")?.textContent).toBe("Three");
+    // The caret is drawn after the last block, not as an element on its own line.
+    expect(container.querySelector("[aria-hidden='true']")).toBeNull();
+  });
+
+  it("shows no caret once the answer is complete", () => {
+    const { container } = render(
+      <TurnView
+        turn={turn()}
+        active
+        activeLabel={null}
+        onActivate={vi.fn()}
+        onRetry={vi.fn()}
+        onShowEvidence={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector("[class*='streaming']")).toBeNull();
   });
 
   it("summarises the distinct documents behind the cited sources", () => {

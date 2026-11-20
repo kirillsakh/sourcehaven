@@ -78,9 +78,9 @@ export function TurnView({
           knownLabels={knownLabels}
           activeLabel={active ? activeLabel : null}
           onCitation={handleCitation}
+          streaming={generating}
         />
       )}
-      {generating && turn.text !== "" && <span className={styles.caret} aria-hidden="true" />}
       {problem !== null && (
         <p className={styles.problem} role="alert">
           {problem}

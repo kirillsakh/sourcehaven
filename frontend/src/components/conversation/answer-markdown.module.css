@@ -12,8 +12,60 @@
   margin: 0 0 0.8em;
 }
 
+.answer .heading {
+  margin: 0.8em 0 0.3em;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.answer blockquote {
+  margin: 0.6em 0;
+  padding-left: 0.8em;
+  border-left: 3px solid var(--rule);
+}
+
+.answer code {
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  background: var(--wash);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+/* A long code line scrolls inside the answer instead of widening the page. */
 .answer pre {
+  max-width: 100%;
   overflow-x: auto;
+  padding: 0.6em 0.8em;
+  border-radius: 4px;
+  background: var(--wash);
+}
+
+.answer pre code {
+  padding: 0;
+  background: none;
+}
+
+/*
+ * The caret follows the streamed text on its last line. A list's own last item carries it, since
+ * a caret after the list itself would sit on a line of its own.
+ */
+.streaming > :not(ul, ol):last-child::after,
+.streaming > :is(ul, ol):last-child > li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  margin-left: 2px;
+  background: var(--ink);
+  vertical-align: text-bottom;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
 }
 
 .unmatched {

@@ -8,7 +8,11 @@ import { AnswerMarkdown } from "@/components/conversation/answer-markdown";
 function renderAnswer(
   text: string,
   knownLabels: string[],
-  options: { activeLabel?: string | null; onCitation?: (label: string) => void } = {},
+  options: {
+    activeLabel?: string | null;
+    onCitation?: (label: string) => void;
+    streaming?: boolean;
+  } = {},
 ): ReturnType<typeof render> {
   return render(
     <AnswerMarkdown
@@ -16,6 +20,7 @@ function renderAnswer(
       knownLabels={new Set(knownLabels)}
       activeLabel={options.activeLabel ?? null}
       onCitation={options.onCitation ?? vi.fn()}
+      streaming={options.streaming ?? false}
     />,
   );
 }
@@ -28,6 +33,30 @@ describe("AnswerMarkdown", () => {
     expect(container.querySelectorAll("li")).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Source 1" }).textContent).toBe("[1]");
     expect(screen.getByRole("button", { name: "Source 2" }).textContent).toBe("[2]");
+  });
+
+  it("renders headings as paragraphs so answers add nothing to the page outline", () => {
+    const { container } = renderAnswer("## Title\n\nBody text.", []);
+
+    expect(container.querySelector("h1, h2, h3, h4, h5, h6")).toBeNull();
+    expect(screen.getByText("Title").tagName).toBe("P");
+  });
+
+  it("marks a streaming answer so the caret follows its last block", () => {
+    const { container, rerender } = renderAnswer("Three months", [], { streaming: true });
+    const answer: Element | null = container.firstElementChild;
+
+    expect(answer?.className).toMatch(/streaming/);
+    rerender(
+      <AnswerMarkdown
+        text="Three months"
+        knownLabels={new Set()}
+        activeLabel={null}
+        onCitation={vi.fn()}
+        streaming={false}
+      />,
+    );
+    expect(container.firstElementChild?.className).not.toMatch(/streaming/);
   });
 
   it("calls onCitation with the server label", async () => {

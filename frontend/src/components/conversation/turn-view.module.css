@@ -40,20 +40,6 @@
   color: var(--graphite);
 }
 
-.caret {
-  display: inline-block;
-  width: 2px;
-  height: 1.2em;
-  background: var(--ink);
-  animation: blink 1s steps(2, start) infinite;
-}
-
-@keyframes blink {
-  to {
-    visibility: hidden;
-  }
-}
-
 .problem {
   color: var(--bad);
   overflow-wrap: anywhere;

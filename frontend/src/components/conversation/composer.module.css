@@ -14,6 +14,12 @@
   background: var(--paper);
 }
 
+/* The ring goes around the whole box while typing; the Ask and Stop buttons keep their own. */
+.box:has(.input:focus) {
+  outline: 2px solid var(--prussian);
+  outline-offset: 2px;
+}
+
 .input {
   flex: 1;
   min-width: 0;
@@ -23,6 +29,10 @@
   background: none;
   line-height: 1.5;
   resize: none;
+}
+
+.input:focus-visible {
+  outline: none;
 }
 
 .ask,
