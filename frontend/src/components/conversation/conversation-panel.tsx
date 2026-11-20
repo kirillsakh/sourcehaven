@@ -5,7 +5,7 @@ import styles from "@/components/conversation/conversation-panel.module.css";
 import { EmptyState } from "@/components/conversation/empty-state";
 import { TurnView } from "@/components/conversation/turn-view";
 import type { DocumentInfo, SessionLimits } from "@/lib/api";
-import { readySelectedIds } from "@/lib/selection";
+import { indexingDocuments, readySelectedIds } from "@/lib/selection";
 import type { TurnViewModel } from "@/lib/use-conversation";
 
 const DEFAULT_MAX_QUESTION_CHARS = 2000;
@@ -16,6 +16,22 @@ function describeReadyDocuments(ready: readonly DocumentInfo[]): string {
   return ready.length === 1
     ? `Ask something about ${ready[0]?.display_name ?? "your document"}`
     : `Ask something about your ${ready.length} documents`;
+}
+
+function describeIndexing(indexing: readonly DocumentInfo[]): string {
+  return indexing.length === 1
+    ? `${indexing[0]?.display_name ?? "Your document"} is being indexed. You can ask once it is ready.`
+    : "Your documents are being indexed. You can ask once one is ready.";
+}
+
+function waitingHint(
+  ready: readonly DocumentInfo[],
+  indexing: readonly DocumentInfo[],
+): string | null {
+  if (ready.length > 0) {
+    return describeReadyDocuments(ready);
+  }
+  return indexing.length > 0 ? describeIndexing(indexing) : null;
 }
 
 export function ConversationPanel({
@@ -57,7 +73,9 @@ export function ConversationPanel({
   const ready: DocumentInfo[] = documents.filter(
     (document: DocumentInfo) => document.state === "ready",
   );
+  const indexing: DocumentInfo[] = indexingDocuments(documents);
   const readySelected: string[] = readySelectedIds(documents, selected);
+  const hint: string | null = waitingHint(ready, indexing);
   const turnsList: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
   const followLatest: RefObject<boolean> = useRef<boolean>(true);
   const shownTurns: RefObject<number> = useRef<number>(0);
@@ -114,7 +132,7 @@ export function ConversationPanel({
         <EmptyState limits={limits} onFiles={onFiles} />
       ) : (
         <div className={styles.turns}>
-          {ready.length > 0 && <p className={styles.hint}>{describeReadyDocuments(ready)}</p>}
+          {hint !== null && <p className={styles.hint}>{hint}</p>}
         </div>
       )}
       <Composer
@@ -123,6 +141,7 @@ export function ConversationPanel({
         generating={generating}
         readySelected={readySelected.length}
         readyTotal={ready.length}
+        indexing={indexing.length}
         error={askError}
         onChange={onQuestionChange}
         onAsk={(): void => onAsk(question, readySelected)}

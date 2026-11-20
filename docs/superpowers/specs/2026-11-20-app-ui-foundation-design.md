@@ -203,15 +203,20 @@ All tokens live in `src/app/globals.css` on `:root`; components use only the var
   unchecked) that selects or clears all ready documents [O].
 - Only Ready documents can be checked; newly ready documents are checked automatically (as today).
 - Under the composer: "Answering from 2 of 3 documents" (ready selected / ready total). With none
-  selected: "Select at least one ready document to ask a question." and Ask is disabled. Clicking the
-  line moves focus to the documents list (on small screens, opens the documents disclosure) [C].
+  selected: "Select at least one ready document to ask a question." and Ask is disabled. While no
+  document is ready but some are queued or processing: "Your document is still being indexed." (or
+  "Your documents are …" for several); with no documents, or only failed ones: "Add a PDF to ask a
+  question." Clicking the line moves focus to the documents list (on small screens, opens the
+  documents disclosure) [C].
 
 ### 6.4 Conversation column
 
 - **Empty state (first visit, no documents):** the middle column is one large drop target:
   heading "Ask questions about your PDFs", one line "Every answer shows the passages it came from.",
   and the tray. With documents but no questions yet: a short prompt above the composer, for example
-  "Ask something about contract.pdf" [B: final copy].
+  "Ask something about contract.pdf" [B: final copy]. While none is ready yet and some are being
+  indexed: "contract.pdf is being indexed. You can ask once it is ready." (several: "Your documents
+  are being indexed. You can ask once one is ready.").
 - **Turns:** question (semibold) then the answer. Older turns are muted (graphite); the turn whose
   evidence is in the panel is the **active turn**, marked with a subtle border and background.
   Clicking a turn or any of its citations makes it active. A new question becomes active when sent.

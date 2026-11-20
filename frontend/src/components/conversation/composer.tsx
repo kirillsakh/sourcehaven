@@ -9,6 +9,7 @@ export function Composer({
   generating,
   readySelected,
   readyTotal,
+  indexing,
   error,
   onChange,
   onAsk,
@@ -20,6 +21,7 @@ export function Composer({
   generating: boolean;
   readySelected: number;
   readyTotal: number;
+  indexing: number;
   error: string | null;
   onChange: (text: string) => void;
   onAsk: () => void;
@@ -80,7 +82,7 @@ export function Composer({
         </p>
       )}
       <button type="button" className={styles.scope} onClick={onScopeClick}>
-        {scopeLine(readySelected, readyTotal)}
+        {scopeLine(readySelected, readyTotal, indexing)}
       </button>
     </form>
   );

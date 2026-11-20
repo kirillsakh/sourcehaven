@@ -111,6 +111,33 @@ describe("ConversationPanel", () => {
     expect(screen.getByText("Ask something about your 3 documents")).toBeTruthy();
   });
 
+  it("explains that the only document is being indexed", () => {
+    renderPanel({ documents: [doc("contract", "processing"), doc("scan", "failed")] });
+
+    expect(
+      screen.getByText("contract.pdf is being indexed. You can ask once it is ready."),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Your document is still being indexed." })).toBeTruthy();
+  });
+
+  it("explains that several documents are being indexed", () => {
+    renderPanel({ documents: [doc("a", "queued"), doc("b", "processing")] });
+
+    expect(
+      screen.getByText("Your documents are being indexed. You can ask once one is ready."),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Your documents are still being indexed." }),
+    ).toBeTruthy();
+  });
+
+  it("asks for a PDF when every document failed", () => {
+    renderPanel({ documents: [doc("scan", "failed")] });
+
+    expect(screen.getByRole("button", { name: "Add a PDF to ask a question." })).toBeTruthy();
+    expect(screen.queryByText(/being indexed/)).toBeNull();
+  });
+
   it("shows turns instead of the hint once there are some", () => {
     renderPanel({ documents: [doc("a")], turns: [turn("t1", "First question?")] });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DocumentInfo } from "@/lib/api";
-import { readySelectedIds, scopeLine, selectAllState } from "@/lib/selection";
+import { indexingDocuments, readySelectedIds, scopeLine, selectAllState } from "@/lib/selection";
 
 function doc(id: string, state: DocumentInfo["state"]): DocumentInfo {
   return {
@@ -40,9 +40,31 @@ describe("readySelectedIds", () => {
 
 describe("scopeLine", () => {
   it("describes the answering scope", () => {
-    expect(scopeLine(2, 3)).toBe("Answering from 2 of 3 documents");
-    expect(scopeLine(1, 1)).toBe("Answering from 1 of 1 document");
-    expect(scopeLine(0, 3)).toBe("Select at least one ready document to ask a question.");
-    expect(scopeLine(0, 0)).toBe("Add a PDF to ask a question.");
+    expect(scopeLine(2, 3, 0)).toBe("Answering from 2 of 3 documents");
+    expect(scopeLine(1, 1, 0)).toBe("Answering from 1 of 1 document");
+    expect(scopeLine(0, 3, 0)).toBe("Select at least one ready document to ask a question.");
+    expect(scopeLine(0, 0, 0)).toBe("Add a PDF to ask a question.");
+  });
+
+  it("says documents are still being indexed while none is ready", () => {
+    expect(scopeLine(0, 0, 1)).toBe("Your document is still being indexed.");
+    expect(scopeLine(0, 0, 2)).toBe("Your documents are still being indexed.");
+  });
+
+  it("keeps the ready-document lines while others are still indexed", () => {
+    expect(scopeLine(1, 1, 2)).toBe("Answering from 1 of 1 document");
+    expect(scopeLine(0, 1, 2)).toBe("Select at least one ready document to ask a question.");
+  });
+});
+
+describe("indexingDocuments", () => {
+  it("returns queued and processing documents only", () => {
+    const failed: DocumentInfo = doc("f", "failed");
+    const queued: DocumentInfo = doc("q", "queued");
+
+    expect(indexingDocuments([ready("a"), processing("c"), failed, queued])).toEqual([
+      processing("c"),
+      queued,
+    ]);
   });
 });

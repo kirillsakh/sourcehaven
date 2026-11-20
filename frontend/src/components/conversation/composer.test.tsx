@@ -18,6 +18,7 @@ function renderComposer(
     generating?: boolean;
     readySelected?: number;
     readyTotal?: number;
+    indexing?: number;
     error?: string | null;
     maxChars?: number;
   } = {},
@@ -35,6 +36,7 @@ function renderComposer(
       generating={options.generating ?? false}
       readySelected={options.readySelected ?? 2}
       readyTotal={options.readyTotal ?? 3}
+      indexing={options.indexing ?? 0}
       error={options.error ?? null}
       {...handlers}
     />,
