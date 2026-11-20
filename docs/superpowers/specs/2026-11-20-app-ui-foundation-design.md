@@ -37,8 +37,8 @@ product UI) build on it rather than replace it [O].
 - Public pages (`/`, `/how-it-works`, `/privacy`), metadata, sitemap, security headers (M6). `/`
   only inherits the new fonts and tokens; its content does not change [C].
 - Previewing original PDFs (spec §1.2 non-goal): evidence stays quoted snippets with page numbers.
-- Polished dark mode. A dark token set is defined so the existing `prefers-color-scheme` support is
-  not lost, but only the light theme is designed and demo-checked [C].
+- Dark mode. The owner chose the light theme only for now [O, 2026-11-20]: `color-scheme: light`, no
+  dark tokens. Dark mode returns later as its own designed and checked pass.
 
 ### 1.3 Anti-goals
 
@@ -101,9 +101,9 @@ The owner chose CSS Modules [O]. The drawer uses the native `<dialog>` element.
 | `--highlighter` | `#FFE774` | evidence highlight and hovered/active citation **only** |
 | `--ok` / `--warn` / `--bad` | `#1F7A4D` / `#8A5A00` / `#B42318` | Ready / in progress / failed status words |
 
-Dark tokens [C, not demo-checked]: paper `#12161F`, ink `#E6E9EF`, graphite `#A9B1C1`, rule `#2A3242`,
-wash `#1A202B`, prussian `#8FB3FF`, highlighter `rgba(255, 231, 116, 0.35)` behind ink-coloured text,
-ok `#6FD08C`, warn `#F0B955`, bad `#FF8A80`.
+Dark tokens: deferred with dark mode (§1.2). A candidate set from the design conversation, not
+checked: paper `#12161F`, ink `#E6E9EF`, graphite `#A9B1C1`, rule `#2A3242`, wash `#1A202B`, prussian
+`#8FB3FF`, highlighter `rgba(255, 231, 116, 0.35)`, ok `#6FD08C`, warn `#F0B955`, bad `#FF8A80`.
 
 All tokens live in `src/app/globals.css` on `:root`; components use only the variables.
 
