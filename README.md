@@ -1,4 +1,4 @@
-# Sourcehaven
+<h1><img src="docs/assets/logo.svg" alt="" width="44" height="44" align="top"> Sourcehaven</h1>
 
 Ask questions about your own PDFs and get answers that cite the exact pages they came from.
 

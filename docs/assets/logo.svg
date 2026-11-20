@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" role="img" aria-label="Sourcehaven">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#1D2433"/>
+  <rect x="27" y="8" width="26" height="33" rx="5" fill="#8FB3FF"/>
+  <path d="M41 16 L49 20.5 L41 25 Z" fill="#1D2433"/>
+  <rect x="20" y="14" width="26" height="33" rx="5" fill="#5C86C7"/>
+  <path d="M23 26 L29 19 L33 23 L36 20.5 L41 26 Z" fill="#FFFFFF"/>
+  <rect x="12" y="21" width="27" height="35" rx="5" fill="#FFFFFF"/>
+  <rect x="17" y="29" width="17" height="3.5" rx="1.75" fill="#B8C7DE"/>
+  <rect x="17" y="36" width="17" height="6" rx="2" fill="#1F4E8C"/>
+  <rect x="17" y="46" width="11" height="3.5" rx="1.75" fill="#B8C7DE"/>
+</svg>

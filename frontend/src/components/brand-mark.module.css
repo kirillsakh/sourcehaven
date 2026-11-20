@@ -1,0 +1,23 @@
+.mark {
+  flex: none;
+}
+
+.tile {
+  fill: var(--ink);
+}
+
+.back {
+  fill: var(--mark-card);
+}
+
+.front {
+  fill: var(--paper);
+}
+
+.line {
+  fill: var(--mark-line);
+}
+
+.cited {
+  fill: var(--prussian);
+}

@@ -12,6 +12,8 @@
   --ok: #1f7a4d;
   --warn: #8a5a00;
   --bad: #b42318;
+  --mark-card: #5c86c7;
+  --mark-line: #b8c7de;
   --font-ui: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
   --font-quote: "Source Serif 4 Variable", Georgia, serif;
 }

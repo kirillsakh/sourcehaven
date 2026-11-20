@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { ReactElement } from "react";
 
 import styles from "@/app/page.module.css";
+import { BrandMark } from "@/components/brand-mark";
 
 export const metadata: Metadata = {
   title: "Sourcehaven: questions about your documents",
@@ -14,7 +15,10 @@ export default function HomePage(): ReactElement {
   return (
     <main className={styles.page}>
       <h1 className={styles.wordmark}>
-        Source<span className={styles.wordmarkTail}>haven</span>
+        <BrandMark size={44} />
+        <span>
+          Source<span className={styles.wordmarkTail}>haven</span>
+        </span>
       </h1>
       <p className={styles.lead}>
         Upload your PDFs, ask a question and get an answer that cites the pages it came from.
