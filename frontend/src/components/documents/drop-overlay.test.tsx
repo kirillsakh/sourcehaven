@@ -154,6 +154,33 @@ describe("DropOverlay", () => {
     expect(onFiles).not.toHaveBeenCalled();
   });
 
+  it("hides when uploads become unavailable mid-drag and stays hidden after the drag ends", () => {
+    const { rerender } = render(<DropOverlay enabled limits={limits} onFiles={vi.fn()} />);
+
+    dispatchDrag("dragenter", document.body);
+    expect(screen.getByText("Drop to upload PDFs")).toBeTruthy();
+
+    rerender(<DropOverlay enabled={false} limits={limits} onFiles={vi.fn()} />);
+    expect(screen.queryByText(/Drop to upload/)).toBeNull();
+
+    dispatchDrag("dragleave", document.body);
+    rerender(<DropOverlay enabled limits={limits} onFiles={vi.fn()} />);
+    expect(screen.queryByText(/Drop to upload/)).toBeNull();
+  });
+
+  it("keeps the depth count when props change mid-drag", () => {
+    const { rerender } = render(<DropOverlay enabled limits={limits} onFiles={vi.fn()} />);
+    const child: HTMLElement = document.createElement("div");
+    document.body.append(child);
+
+    dispatchDrag("dragenter", document.body);
+    dispatchDrag("dragenter", child);
+    rerender(<DropOverlay enabled limits={limits} onFiles={vi.fn()} />);
+    dispatchDrag("dragleave", document.body);
+
+    expect(screen.getByText("Drop to upload PDFs")).toBeTruthy();
+  });
+
   it("shows the limits line when limits are given", () => {
     mountOverlay();
 

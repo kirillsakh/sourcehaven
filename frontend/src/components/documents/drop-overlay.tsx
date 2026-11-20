@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement, type RefObject } from "react";
 
 import { describeLimits } from "@/components/documents/drop-tray";
 import styles from "@/components/documents/drop-overlay.module.css";
@@ -29,8 +29,17 @@ export function DropOverlay({
   onFiles: (files: File[]) => void;
 }): ReactElement | null {
   const [dragging, setDragging] = useState<Dragging | null>(null);
+  const enabledRef: RefObject<boolean> = useRef<boolean>(enabled);
+  const onFilesRef: RefObject<(files: File[]) => void> = useRef<(files: File[]) => void>(onFiles);
 
   useEffect(() => {
+    enabledRef.current = enabled;
+    onFilesRef.current = onFiles;
+  }, [enabled, onFiles]);
+
+  useEffect(() => {
+    // Subscribed once, with the latest props read through refs, so the depth counter survives
+    // `enabled` changing mid-drag and a drag that ends while disabled is still tracked.
     // dragenter and dragleave fire for every element the pointer crosses, so the overlay is
     // shown while the number of entered-but-not-left elements is positive.
     let depth: number = 0;
@@ -41,7 +50,7 @@ export function DropOverlay({
     }
 
     function onDragEnter(event: DragEvent): void {
-      if (!enabled || !carriesFiles(event)) {
+      if (!carriesFiles(event)) {
         return;
       }
       depth += 1;
@@ -57,7 +66,7 @@ export function DropOverlay({
     }
 
     function onDragLeave(event: DragEvent): void {
-      if (!enabled || !carriesFiles(event)) {
+      if (!carriesFiles(event)) {
         return;
       }
       depth -= 1;
@@ -72,8 +81,8 @@ export function DropOverlay({
       }
       event.preventDefault();
       hide();
-      if (enabled) {
-        onFiles(Array.from(event.dataTransfer?.files ?? []));
+      if (enabledRef.current) {
+        onFilesRef.current(Array.from(event.dataTransfer?.files ?? []));
       }
     }
 
@@ -89,9 +98,9 @@ export function DropOverlay({
       window.removeEventListener("drop", onDrop);
       window.removeEventListener("dragend", hide);
     };
-  }, [enabled, onFiles]);
+  }, []);
 
-  if (dragging === null) {
+  if (!enabled || dragging === null) {
     return null;
   }
   return (
