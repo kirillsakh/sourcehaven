@@ -1,0 +1,48 @@
+.tray {
+  padding: 12px;
+  border: 1.5px dashed var(--rule);
+  border-radius: 10px;
+  background: var(--wash);
+  color: var(--graphite);
+  font-size: 13px;
+  text-align: center;
+}
+
+.tray p {
+  margin: 0;
+}
+
+.large {
+  padding: 28px 20px;
+  font-size: 15px;
+}
+
+.title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.large .title {
+  font-size: 17px;
+}
+
+.choose {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--prussian);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.choose:disabled {
+  color: var(--graphite);
+  text-decoration: none;
+}
+
+.full {
+  margin-top: 4px;
+  color: var(--ink);
+  font-weight: 600;
+}

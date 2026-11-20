@@ -1,0 +1,16 @@
+.selectAll {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--graphite);
+  font-size: 13.5px;
+}
+
+.selectAll input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--prussian);
+}
