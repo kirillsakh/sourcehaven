@@ -660,14 +660,20 @@ splitter makes passages of about 400 tokens with 60 tokens of overlap, preferrin
 and sentence boundaries; a short document becomes a single passage, and a citation quotes the first
 300 characters of its passage, which can miss the supporting text (seen with the one-page demo CV).
 
-- **Candidates, run through the same harness and corpus as §8.2:** the current splitter; smaller
-  passages (about 150–250 tokens); structure-aware splitting on headings and lists where the parser
-  recovers them; sentence-window retrieval (retrieve a sentence, send its neighbours to the model);
-  semantic splitting at topic shifts, if its ingestion cost is acceptable.
-- **Quote selection:** choose the quoted sentences by similarity to the question (and, for cited
-  answers, to the citing sentence) instead of the passage start. Measured independently of the
+- **Candidates, run through the same harness and corpus as §8.2** (narrowed 2026-11-20, owner
+  decision): the current splitter (400 tokens, 60 overlap), about 250 tokens and about 150 tokens.
+  Structure-aware splitting (pypdf yields no headings), sentence-window retrieval and semantic
+  splitting (both multiply embedding work and change passage storage) are dropped unless smaller
+  passages are shown to fall short.
+- **Quote selection:** choose the quoted sentences by embedding similarity to the citing sentences
+  (to the question for uncited passages) instead of the passage start; designed in
+  `2026-11-20-quote-selection-design.md` and shipped first in M2. Measured independently of the
   splitter, since it applies to any of them.
-- **Metrics:** Recall@8 and MRR@10 against the gold passages; quote precision (does the stored quote
+- **Gold answers** are a page and the exact supporting text, not passages, so every parser and
+  splitter can be scored against them.
+- **M2 order:** quote selection; corpus and harness; parser; splitter; embedding model and
+  threshold. Each piece gets its own short design.
+- **Metrics:** Recall@8 and MRR@10 against the gold spans; quote precision (does the stored quote
   contain the gold span); answer support and citation accuracy from §8.4 for the two best
   candidates; ingestion time and stored passages per page.
 - **Decision:** a decision record per change. Changing the splitter changes `chunker_fingerprint`,
