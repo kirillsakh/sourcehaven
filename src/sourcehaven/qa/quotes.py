@@ -1,11 +1,12 @@
 import asyncio
 import math
 import re
-from collections.abc import Sequence
+from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from sourcehaven.domain.models import Citation
 from sourcehaven.embeddings.protocol import Embedder
+from sourcehaven.generation.prompts import LabelledEvidence
 from sourcehaven.qa.citations import CITATION_LABEL, QUOTE_SNAPSHOT_CHARACTERS
 
 QUOTE_SELECTION_TIMEOUT_SECONDS: float = 2.0
@@ -200,10 +201,45 @@ def _cut(sentences: Sequence[Sentence], index: int, limit: int) -> str:
     return prefix + cut.rstrip() + _ELLIPSIS
 
 
+@dataclass(frozen=True)
+class PassageSentences:
+    """A passage's sentences and their document embeddings, in passage order."""
+
+    sentences: list[Sentence]
+    vectors: list[list[float]]
+
+
+async def embed_passage_sentences(
+    passages: Sequence[LabelledEvidence], embedder: Embedder
+) -> dict[str, PassageSentences]:
+    """Split the passages given to the model into sentences and embed them as documents.
+
+    The passages are known before generation starts, so this can run while the answer streams.
+
+    Returns:
+        Each passage's sentences and vectors, keyed by its label.
+
+    Raises:
+        Exception: Whatever the embedder raises.
+    """
+    split: list[list[Sentence]] = [split_passage_sentences(p.evidence.text) for p in passages]
+    texts: list[str] = [sentence.text for sentences in split for sentence in sentences]
+    vectors: list[list[float]] = await embedder.embed_documents(texts) if texts else []
+    embedded: dict[str, PassageSentences] = {}
+    position: int = 0
+    for passage, sentences in zip(passages, split, strict=True):
+        embedded[passage.label] = PassageSentences(
+            sentences=sentences, vectors=vectors[position : position + len(sentences)]
+        )
+        position += len(sentences)
+    return embedded
+
+
 async def select_quotes(
     answer: str,
     sources: Sequence[Citation],
     *,
+    passage_sentences: Awaitable[Mapping[str, PassageSentences]],
     question_vector: Sequence[float],
     embedder: Embedder,
     timeout_seconds: float = QUOTE_SELECTION_TIMEOUT_SECONDS,
@@ -219,9 +255,12 @@ async def select_quotes(
     Args:
         answer: The complete answer text.
         sources: The validated sources, each with its current quote.
+        passage_sentences: `embed_passage_sentences` for the supplied passages, usually started
+            when generation started; waiting for it counts towards the time limit.
         question_vector: The question's query embedding, made by `embedder`.
         embedder: The active embedder.
-        timeout_seconds: Limit for the whole selection.
+        timeout_seconds: Limit for the whole selection, including the wait for
+            `passage_sentences`.
 
     Returns:
         `sources` in order with new quotes; a source whose passage has no sentences keeps its
@@ -232,16 +271,18 @@ async def select_quotes(
         Exception: Whatever the embedder raises. The caller keeps the existing quotes.
     """
     async with asyncio.timeout(timeout_seconds):
-        return await _select_quotes(answer, sources, question_vector, embedder)
+        return await _select_quotes(
+            answer, sources, await passage_sentences, question_vector, embedder
+        )
 
 
 async def _select_quotes(
     answer: str,
     sources: Sequence[Citation],
+    passages: Mapping[str, PassageSentences],
     question_vector: Sequence[float],
     embedder: Embedder,
 ) -> list[Citation]:
-    passages: list[list[Sentence]] = [split_passage_sentences(s.evidence.text) for s in sources]
     citing: dict[str, list[str]] = citing_sentences(answer)
     queries: list[str] = list(
         dict.fromkeys(
@@ -251,17 +292,13 @@ async def _select_quotes(
             for sentence in citing.get(source.label, [])
         )
     )
-    flat: list[str] = [sentence.text for sentences in passages for sentence in sentences]
-    sentence_vectors: list[list[float]] = await embedder.embed_documents(flat) if flat else []
     query_vectors: dict[str, list[float]] = (
         dict(zip(queries, await embedder.embed_queries(queries), strict=True)) if queries else {}
     )
     chosen: list[Citation] = []
-    position: int = 0
-    for source, sentences in zip(sources, passages, strict=True):
-        vectors: list[list[float]] = sentence_vectors[position : position + len(sentences)]
-        position += len(sentences)
-        if not sentences:
+    for source in sources:
+        passage: PassageSentences | None = passages.get(source.label)
+        if passage is None or not passage.sentences:
             chosen.append(source)
             continue
         targets: list[Sequence[float]] = (
@@ -269,10 +306,9 @@ async def _select_quotes(
             if source.cited
             else []
         )
-        ranked: list[int] = _rank(vectors, targets or [question_vector])
-        chosen.append(
-            replace(source, quote=assemble_quote(source.evidence.text, sentences, ranked))
-        )
+        ranked: list[int] = _rank(passage.vectors, targets or [question_vector])
+        quote: str = assemble_quote(source.evidence.text, passage.sentences, ranked)
+        chosen.append(replace(source, quote=quote))
     return chosen
 
 

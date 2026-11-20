@@ -468,7 +468,7 @@ async def test_quote_selection_failure_keeps_the_passage_start_and_completes(
     assert events[-2].data["sources"][0]["quote"].startswith("The Sourcehaven warranty")
 
 
-async def test_failed_answer_makes_no_quote_selection_call(
+async def test_failed_answer_selects_no_quotes(
     ready_visitor: ReadyVisitorFactory,
 ) -> None:
     embedder: CountingEmbedder = CountingEmbedder()
@@ -478,4 +478,29 @@ async def test_failed_answer_makes_no_quote_selection_call(
     )
     embedder.reset()
     await visitor.ask("warranty?", [doc])
-    assert embedder.query_batches == 0 and embedder.document_batches == 0
+    assert embedder.query_batches == 0  # passage sentences may have been embedded meanwhile
+
+
+async def test_passage_sentences_are_embedded_while_the_answer_streams(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    gate: asyncio.Event = asyncio.Event()
+    embedder: CountingEmbedder = CountingEmbedder()
+    model: ScriptedChatModel = ScriptedChatModel(
+        script=["The warranty ", "is 24 months [S1]."], gate=gate
+    )
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model, embedder=embedder)
+    )
+    embedder.reset()
+    async with visitor.stream_question("How long is the warranty?", [doc]) as stream:
+        await stream.read_until("delta")
+
+        async def document_batches() -> int:
+            return embedder.document_batches
+
+        await eventually(document_batches, until=lambda batches: batches == 1)
+        assert embedder.query_batches == 0
+        gate.set()
+        assert (await stream.collect_rest())[-1].name == "done"
+    assert embedder.document_batches == 1 and embedder.query_batches == 1

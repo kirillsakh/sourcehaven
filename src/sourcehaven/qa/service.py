@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from collections.abc import AsyncGenerator, AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -32,7 +32,7 @@ from sourcehaven.qa.events import (
     TurnEvent,
     TurnStarted,
 )
-from sourcehaven.qa.quotes import select_quotes
+from sourcehaven.qa.quotes import PassageSentences, embed_passage_sentences, select_quotes
 from sourcehaven.retrieval.search import search_evidence, select_evidence
 from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.repositories.conversations import (
@@ -129,6 +129,12 @@ async def _closing[T](stream: AsyncIterator[T]) -> AsyncIterator[AsyncIterator[T
     finally:
         if isinstance(stream, AsyncGenerator):
             await stream.aclose()
+
+
+def _ignore_unawaited_failure(task: asyncio.Task[dict[str, PassageSentences]]) -> None:
+    """Mark a failure as seen, so a task no answer waited for is not reported at shutdown."""
+    if not task.cancelled():
+        task.exception()
 
 
 def _unvalidated(supplied: Sequence[LabelledEvidence]) -> list[Citation]:
@@ -277,6 +283,7 @@ class QAService:
         # Passages sent to the model are stored with every ending, so deleting a document can
         # find each turn that used it; only a completed turn's citation flags are validated.
         supplied: list[LabelledEvidence] = []
+        passage_sentences: asyncio.Task[dict[str, PassageSentences]] | None = None
         ended: bool = False
         try:
             yield TurnStarted(turn.turn_id)
@@ -303,6 +310,12 @@ class QAService:
             usage: UsageMetadata | None = None
             finish_reason: str | None = None
             supplied = labelled
+            # Embedding the passages' sentences for quotes takes about as long as a short answer,
+            # so it runs while the answer streams; only a complete answer waits for it.
+            passage_sentences = asyncio.create_task(
+                embed_passage_sentences(labelled, self._container.embedder)
+            )
+            passage_sentences.add_done_callback(_ignore_unawaited_failure)
             try:
                 async with _closing(self._container.chat_model.astream(messages)) as stream:
                     async for chunk in stream:
@@ -360,7 +373,7 @@ class QAService:
                 yield unfinished
                 return
             result: CitationResult = await self._with_selected_quotes(
-                turn, text, validate_citations(text, labelled), question_vector
+                turn, text, validate_citations(text, labelled), passage_sentences, question_vector
             )
             await self._finish(
                 turn,
@@ -399,6 +412,8 @@ class QAService:
             ended = True
             yield Failed("failed", "internal_error", RETRY_MESSAGE, True)
         finally:
+            if passage_sentences is not None:
+                passage_sentences.cancel()
             if not ended:
                 await self._store_interrupted(turn, "".join(parts), _unvalidated(supplied))
 
@@ -407,12 +422,14 @@ class QAService:
         turn: _StartedTurn,
         text: str,
         result: CitationResult,
+        passage_sentences: Awaitable[dict[str, PassageSentences]],
         question_vector: list[float],
     ) -> CitationResult:
         try:
             sources: list[Citation] = await select_quotes(
                 text,
                 result.sources,
+                passage_sentences=passage_sentences,
                 question_vector=question_vector,
                 embedder=self._container.embedder,
             )

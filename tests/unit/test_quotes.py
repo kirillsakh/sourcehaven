@@ -4,17 +4,21 @@ import pytest
 
 from sourcehaven.domain.models import Citation, Evidence, PageSpan
 from sourcehaven.embeddings.hashing import HashEmbedder
-from sourcehaven.embeddings.protocol import EmbedderUnavailable
+from sourcehaven.embeddings.protocol import Embedder, EmbedderUnavailable
+from sourcehaven.generation.prompts import LabelledEvidence
 from sourcehaven.qa.citations import quote_snapshot
 from sourcehaven.qa.quotes import (
+    QUOTE_SELECTION_TIMEOUT_SECONDS,
+    PassageSentences,
     Sentence,
     assemble_quote,
     citing_sentences,
+    embed_passage_sentences,
     select_quotes,
     split_passage_sentences,
     split_sentences,
 )
-from tests.support.embeddings import QueryFailingEmbedder, SlowEmbedder
+from tests.support.embeddings import CountingEmbedder, QueryFailingEmbedder, SlowEmbedder
 
 PASSAGE: str = (
     "Alex Novák. Prague.\nLed the migration to FastAPI. Cut p95 by 40%.\nMentored four engineers."
@@ -154,10 +158,32 @@ def _citation(label: str, text: str, *, cited: bool) -> Citation:
     return Citation(label=label, evidence=evidence, cited=cited, quote=quote_snapshot(text))
 
 
+def _labelled(sources: list[Citation]) -> list[LabelledEvidence]:
+    return [LabelledEvidence(label=c.label, evidence=c.evidence) for c in sources]
+
+
+async def _select(
+    answer: str,
+    sources: list[Citation],
+    *,
+    question_vector: list[float],
+    embedder: Embedder,
+    timeout_seconds: float = QUOTE_SELECTION_TIMEOUT_SECONDS,
+) -> list[Citation]:
+    return await select_quotes(
+        answer,
+        sources,
+        passage_sentences=embed_passage_sentences(_labelled(sources), embedder),
+        question_vector=question_vector,
+        embedder=embedder,
+        timeout_seconds=timeout_seconds,
+    )
+
+
 async def test_cited_source_quotes_the_sentences_its_citing_sentences_match() -> None:
     passage: str = "Alex Novák, Prague. Led the migration to FastAPI. Enjoys hiking."
     embedder: HashEmbedder = HashEmbedder()
-    chosen: list[Citation] = await select_quotes(
+    chosen: list[Citation] = await _select(
         "Alex migrated a service to FastAPI [S1].",
         [_citation("S1", passage, cited=True)],
         question_vector=await embedder.embed_query("hobbies"),
@@ -169,7 +195,7 @@ async def test_cited_source_quotes_the_sentences_its_citing_sentences_match() ->
 async def test_uncited_and_label_only_sources_use_the_question() -> None:
     passage: str = "The warranty period is 24 months. Support answers within 3 business days."
     embedder: HashEmbedder = HashEmbedder()
-    chosen: list[Citation] = await select_quotes(
+    chosen: list[Citation] = await _select(
         "[S1]",
         [_citation("S1", passage, cited=True), _citation("S2", passage, cited=False)],
         question_vector=await embedder.embed_query(
@@ -183,7 +209,7 @@ async def test_uncited_and_label_only_sources_use_the_question() -> None:
 async def test_source_without_sentences_keeps_its_quote() -> None:
     embedder: HashEmbedder = HashEmbedder()
     source: Citation = _citation("S1", "• • •", cited=True)
-    chosen: list[Citation] = await select_quotes(
+    chosen: list[Citation] = await _select(
         "Dots [S1].",
         [source],
         question_vector=await embedder.embed_query("dots"),
@@ -194,7 +220,7 @@ async def test_source_without_sentences_keeps_its_quote() -> None:
 
 async def test_embedder_errors_propagate() -> None:
     with pytest.raises(EmbedderUnavailable):
-        await select_quotes(
+        await _select(
             "Fact [S1].",
             [_citation("S1", "Fact.", cited=True)],
             question_vector=[1.0],
@@ -204,7 +230,7 @@ async def test_embedder_errors_propagate() -> None:
 
 async def test_slow_embedder_times_out() -> None:
     with pytest.raises(TimeoutError):
-        await select_quotes(
+        await _select(
             "Fact [S1].",
             [_citation("S1", "Fact.", cited=True)],
             question_vector=[1.0],
@@ -215,10 +241,32 @@ async def test_slow_embedder_times_out() -> None:
 
 async def test_quotes_contain_whole_sentences_of_wrapped_passage_lines() -> None:
     embedder: HashEmbedder = HashEmbedder()
-    chosen: list[Citation] = await select_quotes(
+    chosen: list[Citation] = await _select(
         "Alex moved vector search to pgvector, cutting p95 latency by 40% [S1].",
         [_citation("S1", CV_TEXT, cited=True)],
         question_vector=await embedder.embed_query("latency"),
         embedder=embedder,
     )
     assert "cutting p95 latency by\n40%." in chosen[0].quote
+
+
+async def test_selection_after_passages_are_embedded_only_embeds_citing_sentences() -> None:
+    embedder: CountingEmbedder = CountingEmbedder()
+    sources: list[Citation] = [_citation("S1", "Fact one. Fact two.", cited=True)]
+    embedded: dict[str, PassageSentences] = await embed_passage_sentences(
+        _labelled(sources), embedder
+    )
+    embedder.reset()
+
+    async def ready() -> dict[str, PassageSentences]:
+        return embedded
+
+    chosen: list[Citation] = await select_quotes(
+        "Fact two [S1].",
+        sources,
+        passage_sentences=ready(),
+        question_vector=await embedder.embed_query("fact"),
+        embedder=embedder,
+    )
+    assert chosen[0].quote == "…Fact two."
+    assert embedder.document_batches == 0 and embedder.query_batches == 1

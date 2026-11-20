@@ -63,10 +63,16 @@ quote.
 
 ## Design
 
-**When it runs.** Only for a **complete** answer, after `validate_citations` and before the turn is
-stored and `sources` is sent, so the stored and streamed quotes are the same [P]. Failed,
-interrupted and cut-off turns keep the passage-start quote: they have no finished answer to support
-and must not wait on another TEI call.
+**When it runs.** Quotes are chosen only for a **complete** answer, after `validate_citations` and
+before the turn is stored and `sources` is sent, so the stored and streamed quotes are the same [P].
+Failed, interrupted and cut-off turns keep the passage-start quote: they have no finished answer to
+support and must not wait on another TEI call.
+
+**Embedding while the answer streams** [A, changed 2026-11-20 after measuring]: the passages are
+known before generation starts, so their sentences are embedded in a background task started with
+generation. After the answer completes, only the citing sentences remain to embed. The task is
+cancelled when the turn ends in any other way, so a failed or stopped answer never waits on it; the
+TEI work it already did is the cost.
 
 **Inputs.**
 
@@ -86,8 +92,8 @@ and must not wait on another TEI call.
   citing sentence for each.
 - **The question vector:** the one already computed for retrieval is reused.
 
-**Embedding.** Passage sentences go through `embed_documents` (document prefix) and citing sentences
-through query embedding (query prefix), in batches as ingestion does. The embedder gains a batch
+**Embedding.** Passage sentences go through `embed_documents` (document prefix, in the background
+task) and citing sentences through query embedding (query prefix), in batches as ingestion does. The embedder gains a batch
 query method (`embed_queries`) so citing sentences do not cost one request each [P].
 
 **Choosing sentences, per source.**
@@ -102,15 +108,17 @@ query method (`embed_queries`) so citing sentences do not cost one request each 
 4. **Overlong sentence:** if the top pick alone exceeds 300 characters, it is cut at the last word
    boundary that fits, followed by `…`.
 
-**Fallback.** Any embedder error, or exceeding a total time limit of **2 s** [P, revisit after the
-latency measurement], gives every source of that turn the passage-start quote, exactly as today. A
+**Fallback.** Any embedder error, or exceeding a time limit of **2 s** for the work after the answer
+(waiting for the background task, then the citing sentences) [P], gives every source of that turn the passage-start quote, exactly as today. A
 warning with the turn id and exception class is logged, never text. The answer still completes.
 
-**Latency.** Up to 8 passages of about 400 tokens give roughly 100–200 short sentences, plus the
-citing sentences. The cost on the development host's CPU TEI is unmeasured; the first
-implementation task measures it with the real TEI on the demo documents and records p50/p95 here.
-If it is well above a second, uncited sources fall back to the passage start (they are collapsed in
-the UI) before anything else is changed.
+**Latency** (measured 2026-11-20, development host: x86_64 Mac, native TEI CPU image, provisional
+`snowflake-arctic-embed-m-v2.0`). The three demo documents give 4 passages. With quotes chosen
+entirely after the answer, 98 line-split sentences plus 6 citing sentences took p50 1.9 s and p95
+2.3 s, past the time limit; embedding the passage sentences was about 1.6 s of that and the citing
+sentences about 0.1 s. Dropping uncited sources would not have helped, since all four were cited.
+This led to the two changes marked above: joining wrapped lines and embedding while the answer
+streams. Measurements after those changes: see the end of this section.
 
 **Code seams.**
 
