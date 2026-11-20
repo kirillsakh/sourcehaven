@@ -8,7 +8,10 @@
   border-radius: 10px;
 }
 
-.turn p {
+.question,
+.status,
+.problem,
+.note {
   margin: 0;
 }
 
