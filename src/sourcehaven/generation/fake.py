@@ -40,6 +40,8 @@ class ScriptedChatModel(BaseChatModel):
             more remain; a value at or above the chunk count has no effect.
         record_calls: Whether to keep each call's messages in `calls`. The fake provider of a
             running stack disables it so visitors' prompts do not accumulate in memory.
+        finish_reason: When set, reported on the final chunk as the provider's finish reason
+            (for example "length" when the output limit cut the answer off).
         calls: The message list of every call, in order, if `record_calls` is set.
 
     The gate applies to async streaming only.
@@ -49,6 +51,7 @@ class ScriptedChatModel(BaseChatModel):
     gate: asyncio.Event | None = None
     fail_after: int | None = None
     record_calls: bool = True
+    finish_reason: str | None = None
     calls: list[list[BaseMessage]] = Field(default_factory=list)
 
     @property
@@ -86,7 +89,10 @@ class ScriptedChatModel(BaseChatModel):
                 content=chunks[index],
                 usage_metadata=self._usage(messages, chunks),
                 chunk_position="last",
-            )
+            ),
+            generation_info=(
+                None if self.finish_reason is None else {"finish_reason": self.finish_reason}
+            ),
         )
 
     def _record(self, messages: list[BaseMessage]) -> None:

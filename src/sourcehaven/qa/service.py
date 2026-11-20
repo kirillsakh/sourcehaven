@@ -49,6 +49,9 @@ logger: logging.Logger = logging.getLogger(__name__)
 
 NO_EVIDENCE_ANSWER: Final[str] = "I couldn't find information about this in the selected documents."
 RETRY_MESSAGE: Final[str] = "The answer could not be completed. Please try again."
+LENGTH_LIMIT_MESSAGE: Final[str] = (
+    "This answer was cut off because it reached the length limit. Please try again."
+)
 # A conflicting insert whose competing turn has ended by the re-check is tried once more.
 TURN_INSERT_ATTEMPTS: Final[int] = 2
 
@@ -287,12 +290,16 @@ class QAService:
                 count_tokens=self._container.count_prompt_tokens,
             )
             usage: UsageMetadata | None = None
+            finish_reason: str | None = None
             supplied = labelled
             try:
                 async with _closing(self._container.chat_model.astream(messages)) as stream:
                     async for chunk in stream:
                         if isinstance(chunk, AIMessageChunk) and chunk.usage_metadata:
                             usage = chunk.usage_metadata
+                        reason: object = chunk.response_metadata.get("finish_reason")
+                        if isinstance(reason, str):
+                            finish_reason = reason
                         piece: str = str(chunk.text)
                         if piece:
                             parts.append(piece)
@@ -313,6 +320,34 @@ class QAService:
                 yield Failed("failed", "provider_error", RETRY_MESSAGE, True)
                 return
             text: str = "".join(parts)
+            input_tokens: int | None = None if usage is None else usage["input_tokens"]
+            output_tokens: int | None = None if usage is None else usage["output_tokens"]
+            # A reasoning model can spend its whole output budget before writing anything, and
+            # an answer cut off by the limit may lack its citations: neither is a complete answer.
+            unfinished: Failed | None = None
+            if not text.strip():
+                unfinished = Failed("failed", "empty_answer", RETRY_MESSAGE, True)
+            elif finish_reason == "length":
+                unfinished = Failed("interrupted", "length_limit", LENGTH_LIMIT_MESSAGE, True)
+            if unfinished is not None:
+                await self._finish(
+                    turn,
+                    TurnOutcome(
+                        unfinished.status,
+                        text,
+                        self._now(),
+                        error_code=unfinished.code,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        sources=_unvalidated(supplied),
+                    ),
+                )
+                ended = True
+                logger.warning(
+                    "turn %s ended without a complete answer: %s", turn.turn_id, unfinished.code
+                )
+                yield unfinished
+                return
             result: CitationResult = validate_citations(text, labelled)
             await self._finish(
                 turn,
@@ -320,8 +355,8 @@ class QAService:
                     "complete",
                     text,
                     self._now(),
-                    input_tokens=None if usage is None else usage["input_tokens"],
-                    output_tokens=None if usage is None else usage["output_tokens"],
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
                     sources=result.sources,
                 ),
             )
@@ -333,10 +368,7 @@ class QAService:
                 len(result.invalid_labels),
             )
             yield SourcesFinal(result)
-            yield Done(
-                None if usage is None else usage["input_tokens"],
-                None if usage is None else usage["output_tokens"],
-            )
+            yield Done(input_tokens, output_tokens)
         except Exception as error:
             if ended:
                 raise

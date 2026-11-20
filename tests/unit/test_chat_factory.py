@@ -43,3 +43,26 @@ def test_openai_provider_requires_an_api_key() -> None:
         build_chat_model(
             Settings(embedding_provider="hash", generation_provider="openai", openai_api_key=None)
         )
+
+
+def test_reasoning_effort_is_passed_when_configured() -> None:
+    settings: Settings = Settings(
+        embedding_provider="hash",
+        generation_provider="openai",
+        openai_api_key=SecretStr("sk-test"),
+        openai_reasoning_effort="low",
+    )
+    model: BaseChatModel = build_chat_model(settings)
+    assert isinstance(model, ChatOpenAI)
+    assert model.reasoning_effort == "low"
+
+
+def test_reasoning_effort_is_left_out_by_default() -> None:
+    settings: Settings = Settings(
+        embedding_provider="hash",
+        generation_provider="openai",
+        openai_api_key=SecretStr("sk-test"),
+    )
+    model: BaseChatModel = build_chat_model(settings)
+    assert isinstance(model, ChatOpenAI)
+    assert model.reasoning_effort is None

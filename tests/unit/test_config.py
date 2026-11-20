@@ -49,6 +49,8 @@ def test_defaults_match_spec_limits(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.max_documents_per_session == 10
     assert settings.chunk_tokens == 400 and settings.chunk_overlap == 60
     assert settings.openai_model == "gpt-6-luna"
+    assert settings.max_output_tokens == 2000
+    assert settings.openai_reasoning_effort is None
 
 
 def test_openai_key_read_from_unprefixed_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -126,3 +128,12 @@ def test_tei_requires_pinned_revision() -> None:
 
 def test_trusted_proxy_defaults_to_loopback() -> None:
     assert build_settings(embedding_provider="hash").trusted_proxy == "127.0.0.1"
+
+
+def test_reasoning_effort_accepts_only_known_levels(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SOURCEHAVEN_EMBEDDING_PROVIDER", "hash")
+    monkeypatch.setenv("SOURCEHAVEN_OPENAI_REASONING_EFFORT", "low")
+    assert build_settings().openai_reasoning_effort == "low"
+    monkeypatch.setenv("SOURCEHAVEN_OPENAI_REASONING_EFFORT", "extreme")
+    with pytest.raises(ValidationError):
+        build_settings()

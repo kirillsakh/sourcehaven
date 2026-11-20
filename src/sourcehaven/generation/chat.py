@@ -19,7 +19,8 @@ def build_chat_model(settings: Settings) -> BaseChatModel:
     whose constructor alias is `max_completion_tokens` (the name the request payload sends; the
     type checker only accepts the alias). A `None` temperature is left out of the request
     payload, so models that only accept their default temperature still work. Retries are disabled
-    (`max_retries=0`) because the caller retries itself, and only before the first token.
+    (`max_retries=0`) because the caller retries itself, and only before the first token. An unset
+    `reasoning_effort` is left out of the request, like the temperature.
 
     Raises:
         ValueError: If the OpenAI provider is selected without an API key.
@@ -33,6 +34,7 @@ def build_chat_model(settings: Settings) -> BaseChatModel:
         api_key=settings.openai_api_key,
         temperature=settings.generation_temperature,
         max_completion_tokens=settings.max_output_tokens,
+        reasoning_effort=settings.openai_reasoning_effort,
         stream_usage=True,
         timeout=OPENAI_REQUEST_TIMEOUT_SECONDS,
         max_retries=0,

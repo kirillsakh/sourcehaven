@@ -102,7 +102,7 @@ export function TurnView({
       {problem !== null && (
         <p className={styles.problem} role="alert">
           {problem}
-          {turn.status === "failed" && turn.retryable && turn.question !== "" && !generating && (
+          {turn.retryable && turn.question !== "" && !generating && (
             <>
               {" "}
               <button

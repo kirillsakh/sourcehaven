@@ -67,7 +67,10 @@ class Settings(BaseSettings):
     # Unset by default: reasoning models such as gpt-6-luna reject any temperature other than
     # their default, and an unset value is omitted from the request.
     generation_temperature: float | None = None
-    max_output_tokens: int = 800
+    # Reasoning models spend hidden reasoning tokens from the same output budget as the answer;
+    # "low" leaves room for the answer. Unset by default because other models reject the field.
+    openai_reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None
+    max_output_tokens: int = 2000
 
     human_verification: Literal["turnstile", "disabled"] = "turnstile"
     cookie_secure: bool = True

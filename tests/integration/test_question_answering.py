@@ -72,6 +72,50 @@ async def test_mid_stream_error_keeps_partial_text_as_failed(
     assert turn["status"] == "failed" and turn["text"] == "Partial "
 
 
+async def test_answer_cut_off_by_the_length_limit_is_interrupted(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    model: ScriptedChatModel = ScriptedChatModel(
+        script=["Partial ", "answer [S1]"], finish_reason="length"
+    )
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model)
+    )
+    events: list[SseEvent] = await visitor.ask("warranty?", [doc])
+    assert [event.name for event in events if event.name in ("done", "sources")] == []
+    assert events[-1].name == "error"
+    assert events[-1].data == {
+        "status": "interrupted",
+        "code": "length_limit",
+        "message": "This answer was cut off because it reached the length limit. Please try again.",
+        "retryable": True,
+    }
+    turn: dict[str, object] = (await visitor.conversation())["turns"][-1]
+    assert turn["status"] == "interrupted" and turn["text"] == "Partial answer [S1]"
+
+
+@pytest.mark.parametrize(
+    ("script", "finish_reason"), [([""], "length"), (["  ", "\n"], "stop"), ([""], None)]
+)
+async def test_answer_without_visible_text_is_failed(
+    ready_visitor: ReadyVisitorFactory, script: list[str], finish_reason: str | None
+) -> None:
+    model: ScriptedChatModel = ScriptedChatModel(script=script, finish_reason=finish_reason)
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model)
+    )
+    events: list[SseEvent] = await visitor.ask("warranty?", [doc])
+    assert events[-1].name == "error"
+    assert events[-1].data == {
+        "status": "failed",
+        "code": "empty_answer",
+        "message": "The answer could not be completed. Please try again.",
+        "retryable": True,
+    }
+    turn: dict[str, object] = (await visitor.conversation())["turns"][-1]
+    assert turn["status"] == "failed"
+
+
 async def test_disconnect_mid_stream_marks_turn_interrupted(
     ready_visitor: ReadyVisitorFactory,
 ) -> None:

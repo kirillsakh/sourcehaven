@@ -116,3 +116,15 @@ def test_fake_provider_builds_the_scripted_model() -> None:
         build_chat_model(Settings(embedding_provider="hash", generation_provider="fake")),
         ScriptedChatModel,
     )
+
+
+async def test_finish_reason_is_reported_on_the_final_chunk_only() -> None:
+    model: ScriptedChatModel = ScriptedChatModel(script=["one ", "two"], finish_reason="length")
+    chunks: list[AIMessageChunk] = await collect(model, [HumanMessage("a b")])
+    assert [c.response_metadata.get("finish_reason") for c in chunks] == [None, "length"]
+
+
+async def test_finish_reason_is_absent_by_default() -> None:
+    model: ScriptedChatModel = ScriptedChatModel(script=["one"])
+    chunks: list[AIMessageChunk] = await collect(model, [HumanMessage("a")])
+    assert "finish_reason" not in chunks[-1].response_metadata

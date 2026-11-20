@@ -284,6 +284,37 @@ describe("TurnView", () => {
     expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
+  it("offers Try again for an answer cut off by the length limit", async () => {
+    const handlers: Handlers = renderTurn(
+      turn({
+        status: "interrupted",
+        text: "Short answer: mostly yes",
+        sources: [],
+        errorMessage:
+          "This answer was cut off because it reached the length limit. Please try again.",
+        retryable: true,
+      }),
+    );
+
+    expect(screen.getByText(/cut off because it reached the length limit/)).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(handlers.onRetry).toHaveBeenCalledExactlyOnceWith("How long is the notice period?");
+  });
+
+  it("offers no Try again for an answer the reader stopped", () => {
+    renderTurn(
+      turn({
+        status: "interrupted",
+        sources: [],
+        errorMessage: "Stopped. This answer is incomplete.",
+        retryable: false,
+      }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
   it("shows the message of an interrupted turn", () => {
     renderTurn(
       turn({

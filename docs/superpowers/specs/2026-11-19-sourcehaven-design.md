@@ -560,9 +560,17 @@ LIMIT :k_candidates;  -- 20
 | Evidence (≤ 8 chunks × ≈ 450 including headers) | ≤ 3,600 |
 | Question (≤ 2,000 characters, enforced by the API) | ≤ 600 |
 | **Input total** | **≤ 6,500** |
-| Output (`max_tokens`) | 800 |
+| Output (`max_tokens`, reasoning included) | 2,000 |
 
 Prompts are measured with `tiktoken` when the model's encoding is available, or else by a conservative character-based estimate [U: confirm the tokenizer for the chosen model]. Interrupted and failed turns are excluded from history.
+
+**Reasoning models** (changed 2026-11-20): their hidden reasoning tokens come out of the same output
+budget as the answer. With 800 tokens, `gpt-5-mini` used the whole budget on a question comparing two
+documents and returned an empty or cut-off answer. The output budget is therefore 2,000 tokens, and
+`SOURCEHAVEN_OPENAI_REASONING_EFFORT` (unset by default, because other models reject it) is set to
+`low` for reasoning models. An answer that ends with no visible text is stored as `failed`
+(`empty_answer`); one the provider cut off at the limit (`finish_reason = "length"`) is stored as
+`interrupted` (`length_limit`) with its partial text and no validated citations. Both are retryable.
 
 ### 7.5 Citations
 
