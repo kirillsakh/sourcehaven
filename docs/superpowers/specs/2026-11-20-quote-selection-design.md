@@ -84,7 +84,9 @@ TEI work it already did is the cost.
   has a line break at every printed line, so splitting at every line break produced fragments such
   as "Recently" or "40%.". A line break is therefore not a boundary when the line does not end with
   sentence punctuation and the next line starts with a lowercase letter, or starts with a letter or
-  digit after a line at least 70% as long as the passage's longest line. Answer text keeps every
+  digit after a line at least 70% as long as the passage's longest line, unless that next line
+  looks like a heading (shorter than that, without sentence punctuation at its end). Answer text
+  keeps every
   line break as a boundary, since the model does not wrap lines. A joined sentence keeps its line
   breaks (the evidence panel renders them as spaces).
 - **Citing sentences:** the answer sentences that contain a source's `[S#]` label, with all `[S#]`
@@ -103,7 +105,7 @@ query method (`embed_queries`) so citing sentences do not cost one request each 
 2. **Uncited source:** the single passage sentence most similar to the question.
 3. **Assembly:** take picks in rank order while the total, including separators, fits in 300
    characters; then arrange the kept sentences in passage order. Adjacent sentences are joined by the
-   source text between them; non-adjacent ones by ` … `. A leading `…` is added when the first kept
+   whitespace between them in the source (a dropped piece such as a bullet glyph is left out); non-adjacent ones by ` … `. A leading `…` is added when the first kept
    sentence does not start the passage, and a trailing `…` when the last does not end it.
 4. **Overlong sentence:** if the top pick alone exceeds 300 characters, it is cut at the last word
    boundary that fits, followed by `…`.

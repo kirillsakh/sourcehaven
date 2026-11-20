@@ -55,7 +55,9 @@ def split_passage_sentences(text: str) -> list[Sentence]:
     Like `split_sentences`, except that a line break inside a sentence is not a boundary: the
     line continues when it does not end with sentence punctuation and the next line starts with
     a lowercase letter, or starts with a letter or digit after a line at least 70% as long as
-    the text's longest line. A sentence keeps its line breaks, so it is still an exact slice.
+    the text's longest line, unless that next line looks like a heading (shorter than that and
+    not ending with sentence punctuation). A sentence keeps its line breaks, so it is still an
+    exact slice.
 
     Returns:
         The sentences in text order, each an exact slice of `text`.
@@ -82,12 +84,16 @@ def _split(text: str, *, join_wrapped_lines: bool) -> list[Sentence]:
 
 def _continues(text: str, line_break: int, longest: int) -> bool:
     line: str = text[text.rfind("\n", 0, line_break) + 1 : line_break].rstrip()
-    following: str = text[line_break + 1 : line_break + 2]
+    next_end: int = text.find("\n", line_break + 1)
+    next_line: str = text[line_break + 1 : len(text) if next_end == -1 else next_end].rstrip()
+    following: str = next_line[:1]
     if not line or not following or _ENDS_SENTENCE.search(line):
         return False
-    return following.islower() or (
-        following.isalnum() and len(line) >= _WRAPPED_LINE_SHARE * longest
-    )
+    if following.islower():
+        return True
+    wrapped: float = _WRAPPED_LINE_SHARE * longest
+    heading: bool = len(next_line) < wrapped and _ENDS_SENTENCE.search(next_line) is None
+    return following.isalnum() and len(line) >= wrapped and not heading
 
 
 def _append_sentence(text: str, start: int, end: int, sentences: list[Sentence]) -> None:
@@ -176,15 +182,21 @@ def _render(passage: str, sentences: Sequence[Sentence], kept: Sequence[int]) ->
     previous: int | None = None
     for index in kept:
         if previous is not None:
-            adjacent: bool = index == previous + 1
             parts.append(
-                passage[sentences[previous].end : sentences[index].start] if adjacent else _GAP
+                _between(passage, sentences[previous], sentences[index])
+                if index == previous + 1
+                else _GAP
             )
         parts.append(sentences[index].text)
         previous = index
     if kept[-1] != len(sentences) - 1:
         parts.append(" " + _ELLIPSIS)
     return "".join(parts)
+
+
+def _between(passage: str, before: Sentence, after: Sentence) -> str:
+    """The whitespace between neighbouring sentences, without dropped pieces such as bullets."""
+    return "".join(c for c in passage[before.end : after.start] if c.isspace()) or " "
 
 
 def _cut(sentences: Sequence[Sentence], index: int, limit: int) -> str:

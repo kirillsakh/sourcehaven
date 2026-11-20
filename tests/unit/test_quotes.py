@@ -270,3 +270,25 @@ async def test_selection_after_passages_are_embedded_only_embeds_citing_sentence
     )
     assert chosen[0].quote == "…Fact two."
     assert embedder.document_batches == 0 and embedder.query_batches == 1
+
+
+def test_neighbouring_sentences_keep_only_the_whitespace_between_them() -> None:
+    passage: str = "AI: OpenAI API, LangChain\n\x7f\nLanguages: Czech, English."
+    sentences: list[Sentence] = split_passage_sentences(passage)
+    assert assemble_quote(passage, sentences, [0, 1]) == (
+        "AI: OpenAI API, LangChain\n\nLanguages: Czech, English."
+    )
+
+
+def test_a_short_heading_after_a_long_line_starts_a_new_sentence() -> None:
+    passage: str = (
+        "Senior Python Developer · Prague, Czech Republic · alex.novak@example.com\n"
+        "Summary\n"
+        "Backend engineer with 8 years of Python, focused on search and data pipelines,\n"
+        "and APIs."
+    )
+    assert [s.text.replace("\n", " ") for s in split_passage_sentences(passage)] == [
+        "Senior Python Developer · Prague, Czech Republic · alex.novak@example.com",
+        "Summary",
+        "Backend engineer with 8 years of Python, focused on search and data pipelines, and APIs.",
+    ]
