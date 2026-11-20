@@ -1,0 +1,20 @@
+.citation {
+  margin: 0 1px;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--prussian);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  vertical-align: 1px;
+  cursor: pointer;
+}
+
+.citation:hover,
+.citation:focus-visible,
+.citation[aria-pressed="true"] {
+  background: var(--highlighter);
+  color: var(--ink);
+}

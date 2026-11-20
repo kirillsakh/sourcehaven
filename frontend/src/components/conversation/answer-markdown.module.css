@@ -1,0 +1,21 @@
+.answer {
+  max-width: 64ch;
+  font-size: 16.5px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.answer p,
+.answer ul,
+.answer ol,
+.answer pre {
+  margin: 0 0 0.8em;
+}
+
+.answer pre {
+  overflow-x: auto;
+}
+
+.unmatched {
+  color: var(--graphite);
+}
