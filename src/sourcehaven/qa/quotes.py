@@ -1,8 +1,14 @@
+import asyncio
+import math
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
+from sourcehaven.domain.models import Citation
+from sourcehaven.embeddings.protocol import Embedder
 from sourcehaven.qa.citations import CITATION_LABEL, QUOTE_SNAPSHOT_CHARACTERS
+
+QUOTE_SELECTION_TIMEOUT_SECONDS: float = 2.0
 
 # A sentence ends at a line break, or at `.`, `!`, `?` or `…` (with any closing quotes or
 # brackets) followed by whitespace. Abbreviations such as "e.g." are not recognised.
@@ -153,3 +159,100 @@ def _cut(sentences: Sequence[Sentence], index: int, limit: int) -> str:
         if boundary > 0:
             cut = cut[:boundary]
     return prefix + cut.rstrip() + _ELLIPSIS
+
+
+async def select_quotes(
+    answer: str,
+    sources: Sequence[Citation],
+    *,
+    question_vector: Sequence[float],
+    embedder: Embedder,
+    timeout_seconds: float = QUOTE_SELECTION_TIMEOUT_SECONDS,
+) -> list[Citation]:
+    """Quote, for each source, the passage sentences that best support the answer.
+
+    A cited source quotes, for each answer sentence citing it, the passage sentence most similar
+    to that sentence, best matches first while they fit. An uncited source, or one cited only by
+    bare labels, quotes the single sentence most similar to the question. Similarity is the
+    cosine of the embedder's vectors: passage sentences as documents, answer sentences as
+    queries.
+
+    Args:
+        answer: The complete answer text.
+        sources: The validated sources, each with its current quote.
+        question_vector: The question's query embedding, made by `embedder`.
+        embedder: The active embedder.
+        timeout_seconds: Limit for the whole selection.
+
+    Returns:
+        `sources` in order with new quotes; a source whose passage has no sentences keeps its
+        quote.
+
+    Raises:
+        TimeoutError: If selection takes longer than `timeout_seconds`.
+        Exception: Whatever the embedder raises. The caller keeps the existing quotes.
+    """
+    async with asyncio.timeout(timeout_seconds):
+        return await _select_quotes(answer, sources, question_vector, embedder)
+
+
+async def _select_quotes(
+    answer: str,
+    sources: Sequence[Citation],
+    question_vector: Sequence[float],
+    embedder: Embedder,
+) -> list[Citation]:
+    passages: list[list[Sentence]] = [split_sentences(s.evidence.text) for s in sources]
+    citing: dict[str, list[str]] = citing_sentences(answer)
+    queries: list[str] = list(
+        dict.fromkeys(
+            sentence
+            for source in sources
+            if source.cited
+            for sentence in citing.get(source.label, [])
+        )
+    )
+    flat: list[str] = [sentence.text for sentences in passages for sentence in sentences]
+    sentence_vectors: list[list[float]] = await embedder.embed_documents(flat) if flat else []
+    query_vectors: dict[str, list[float]] = (
+        dict(zip(queries, await embedder.embed_queries(queries), strict=True)) if queries else {}
+    )
+    chosen: list[Citation] = []
+    position: int = 0
+    for source, sentences in zip(sources, passages, strict=True):
+        vectors: list[list[float]] = sentence_vectors[position : position + len(sentences)]
+        position += len(sentences)
+        if not sentences:
+            chosen.append(source)
+            continue
+        targets: list[Sequence[float]] = (
+            [query_vectors[sentence] for sentence in citing.get(source.label, [])]
+            if source.cited
+            else []
+        )
+        ranked: list[int] = _rank(vectors, targets or [question_vector])
+        chosen.append(
+            replace(source, quote=assemble_quote(source.evidence.text, sentences, ranked))
+        )
+    return chosen
+
+
+def _rank(
+    sentence_vectors: Sequence[Sequence[float]], targets: Sequence[Sequence[float]]
+) -> list[int]:
+    """Each target's most similar sentence (the earlier on ties), best similarity first."""
+    best: dict[int, float] = {}
+    for target in targets:
+        scores: list[float] = [_cosine(vector, target) for vector in sentence_vectors]
+        index: int = max(range(len(scores)), key=scores.__getitem__)
+        best[index] = max(best.get(index, -math.inf), scores[index])
+    return sorted(best, key=lambda index: (-best[index], index))
+
+
+def _cosine(left: Sequence[float], right: Sequence[float]) -> float:
+    norms: float = math.sqrt(math.fsum(a * a for a in left)) * math.sqrt(
+        math.fsum(b * b for b in right)
+    )
+    if norms == 0.0:
+        return 0.0
+    return math.fsum(a * b for a, b in zip(left, right, strict=True)) / norms

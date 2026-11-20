@@ -1,3 +1,4 @@
+import asyncio
 import json
 import math
 from collections.abc import Mapping, Sequence
@@ -141,3 +142,15 @@ class QueryFailingEmbedder(HashEmbedder):
 
     async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
         raise EmbedderUnavailable()
+
+
+class SlowEmbedder(HashEmbedder):
+    """Embeds like `HashEmbedder`, but documents only after a delay."""
+
+    def __init__(self, *, delay_seconds: float) -> None:
+        super().__init__()
+        self._delay_seconds: float = delay_seconds
+
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        await asyncio.sleep(self._delay_seconds)
+        return await super().embed_documents(texts)

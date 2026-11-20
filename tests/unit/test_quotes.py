@@ -1,4 +1,19 @@
-from sourcehaven.qa.quotes import Sentence, assemble_quote, citing_sentences, split_sentences
+from uuid import uuid4
+
+import pytest
+
+from sourcehaven.domain.models import Citation, Evidence, PageSpan
+from sourcehaven.embeddings.hashing import HashEmbedder
+from sourcehaven.embeddings.protocol import EmbedderUnavailable
+from sourcehaven.qa.citations import quote_snapshot
+from sourcehaven.qa.quotes import (
+    Sentence,
+    assemble_quote,
+    citing_sentences,
+    select_quotes,
+    split_sentences,
+)
+from tests.support.embeddings import QueryFailingEmbedder, SlowEmbedder
 
 PASSAGE: str = (
     "Alex Novák. Prague.\nLed the migration to FastAPI. Cut p95 by 40%.\nMentored four engineers."
@@ -86,3 +101,75 @@ def test_sentence_that_only_overflows_with_the_trailing_ellipsis_keeps_every_wor
     passage: str = first + " Next sentence."
     quote: str = assemble_quote(passage, split_sentences(passage), [0])
     assert quote == first + "…" and len(quote) <= 300
+
+
+def _citation(label: str, text: str, *, cited: bool) -> Citation:
+    evidence: Evidence = Evidence(
+        chunk_id=uuid4(),
+        document_id=uuid4(),
+        version_id=uuid4(),
+        document_name="doc.pdf",
+        text=text,
+        span=PageSpan(start=1, end=1),
+        similarity=0.5,
+    )
+    return Citation(label=label, evidence=evidence, cited=cited, quote=quote_snapshot(text))
+
+
+async def test_cited_source_quotes_the_sentences_its_citing_sentences_match() -> None:
+    passage: str = "Alex Novák, Prague. Led the migration to FastAPI. Enjoys hiking."
+    embedder: HashEmbedder = HashEmbedder()
+    chosen: list[Citation] = await select_quotes(
+        "Alex migrated a service to FastAPI [S1].",
+        [_citation("S1", passage, cited=True)],
+        question_vector=await embedder.embed_query("hobbies"),
+        embedder=embedder,
+    )
+    assert chosen[0].quote == "…Led the migration to FastAPI. …"
+
+
+async def test_uncited_and_label_only_sources_use_the_question() -> None:
+    passage: str = "The warranty period is 24 months. Support answers within 3 business days."
+    embedder: HashEmbedder = HashEmbedder()
+    chosen: list[Citation] = await select_quotes(
+        "[S1]",
+        [_citation("S1", passage, cited=True), _citation("S2", passage, cited=False)],
+        question_vector=await embedder.embed_query(
+            "Within how many business days does support answer?"
+        ),
+        embedder=embedder,
+    )
+    assert [c.quote for c in chosen] == ["…Support answers within 3 business days."] * 2
+
+
+async def test_source_without_sentences_keeps_its_quote() -> None:
+    embedder: HashEmbedder = HashEmbedder()
+    source: Citation = _citation("S1", "• • •", cited=True)
+    chosen: list[Citation] = await select_quotes(
+        "Dots [S1].",
+        [source],
+        question_vector=await embedder.embed_query("dots"),
+        embedder=embedder,
+    )
+    assert chosen == [source]
+
+
+async def test_embedder_errors_propagate() -> None:
+    with pytest.raises(EmbedderUnavailable):
+        await select_quotes(
+            "Fact [S1].",
+            [_citation("S1", "Fact.", cited=True)],
+            question_vector=[1.0],
+            embedder=QueryFailingEmbedder(),
+        )
+
+
+async def test_slow_embedder_times_out() -> None:
+    with pytest.raises(TimeoutError):
+        await select_quotes(
+            "Fact [S1].",
+            [_citation("S1", "Fact.", cited=True)],
+            question_vector=[1.0],
+            embedder=SlowEmbedder(delay_seconds=1.0),
+            timeout_seconds=0.05,
+        )
