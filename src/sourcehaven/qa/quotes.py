@@ -159,7 +159,7 @@ def assemble_quote(
 
     Args:
         passage: The text the sentences were split from.
-        sentences: `split_sentences(passage)`.
+        sentences: The passage's sentences in order, each an exact slice of `passage`.
         ranked: Distinct indices into `sentences`, best first; not empty.
         limit: Maximum quote length in characters.
 

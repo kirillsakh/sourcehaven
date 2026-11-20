@@ -137,7 +137,7 @@ async def _closing[T](stream: AsyncIterator[T]) -> AsyncIterator[AsyncIterator[T
 
 
 def _ignore_unawaited_failure(task: asyncio.Task[dict[str, PassageSentences]]) -> None:
-    """Mark a failure as seen, so a task no answer waited for is not reported at shutdown."""
+    """Mark a failure as seen, so asyncio does not warn when the task is garbage-collected."""
     if not task.cancelled():
         task.exception()
 
