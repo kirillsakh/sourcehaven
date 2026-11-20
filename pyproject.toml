@@ -98,5 +98,5 @@ known-first-party = ["sourcehaven"]
 [tool.mypy]
 python_version = "3.14"
 strict = true
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 warn_unreachable = true
