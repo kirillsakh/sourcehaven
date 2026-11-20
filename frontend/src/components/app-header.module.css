@@ -11,11 +11,12 @@
 .wordmark {
   margin: 0;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .tail {
   color: var(--prussian);
+  font-weight: 700;
 }
 
 .retention {

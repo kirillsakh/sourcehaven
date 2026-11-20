@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TurnView } from "@/components/conversation/turn-view";
 import type { TurnSource } from "@/lib/api";
@@ -42,7 +42,12 @@ interface Handlers {
 
 function renderTurn(
   model: TurnViewModel,
-  options: { active?: boolean; activeLabel?: string | null; handlers?: Handlers } = {},
+  options: {
+    active?: boolean;
+    activeLabel?: string | null;
+    generating?: boolean;
+    handlers?: Handlers;
+  } = {},
 ): Handlers {
   const handlers: Handlers = options.handlers ?? {
     onActivate: vi.fn(),
@@ -54,11 +59,16 @@ function renderTurn(
       turn={model}
       active={options.active ?? false}
       activeLabel={options.activeLabel ?? null}
+      generating={options.generating ?? false}
       {...handlers}
     />,
   );
   return handlers;
 }
+
+afterEach(() => {
+  window.getSelection()?.removeAllRanges();
+});
 
 describe("TurnView", () => {
   it("shows the question and the answer text", () => {
@@ -80,6 +90,7 @@ describe("TurnView", () => {
         turn={turn({ status: "generating", text: "Three", sources: [] })}
         active
         activeLabel={null}
+        generating
         onActivate={vi.fn()}
         onRetry={vi.fn()}
         onShowEvidence={vi.fn()}
@@ -98,6 +109,7 @@ describe("TurnView", () => {
         turn={turn()}
         active
         activeLabel={null}
+        generating={false}
         onActivate={vi.fn()}
         onRetry={vi.fn()}
         onShowEvidence={vi.fn()}
@@ -158,6 +170,18 @@ describe("TurnView", () => {
     expect(handlers.onActivate).toHaveBeenCalledExactlyOnceWith("t1");
   });
 
+  it("does not activate a turn when a click ends a text selection", () => {
+    const handlers: Handlers = renderTurn(turn());
+    const question: HTMLElement = screen.getByText("How long is the notice period?");
+    const range: Range = document.createRange();
+    range.selectNodeContents(question);
+    window.getSelection()?.addRange(range);
+
+    fireEvent.click(question);
+
+    expect(handlers.onActivate).not.toHaveBeenCalled();
+  });
+
   it("does not re-activate the active turn on a click", async () => {
     const handlers: Handlers = renderTurn(turn(), { active: true });
 
@@ -190,6 +214,22 @@ describe("TurnView", () => {
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(handlers.onRetry).toHaveBeenCalledExactlyOnceWith("How long is the notice period?");
+  });
+
+  it("offers no Try again while another answer is being generated", () => {
+    renderTurn(
+      turn({
+        status: "failed",
+        text: "",
+        sources: [],
+        errorMessage: "The answer service is busy.",
+        retryable: true,
+      }),
+      { generating: true },
+    );
+
+    expect(screen.getByText("The answer service is busy.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 
   it("offers no Try again for a failure that is not retryable", () => {

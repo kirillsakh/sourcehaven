@@ -88,24 +88,28 @@ Commit the regenerated `api-types.ts` whenever an API schema changes; CI fails i
 The `/app` screen has three columns at 1280 px and wider: documents, conversation and evidence. From
 800 to 1279 px the evidence column becomes a drawer (a native `<dialog>`) that opens from a citation
 or "Show evidence"; below 800 px the page is one column, the documents collapse into a disclosure at
-the top, and the drawer fills the screen. Styles live in `src/app/globals.css` (colour and type
-tokens, dark mode and the focus ring) and in one CSS Module per component. Component tests run under
-jsdom (`// @vitest-environment jsdom`) with Testing Library; pure logic tests run in plain Node.
+the top, and the drawer fills the screen. The app uses a light theme only for now. Styles live in
+`src/app/globals.css` (colour and type tokens and the focus ring) and in one CSS Module per
+component. Component tests run under jsdom (`// @vitest-environment jsdom`) with Testing Library;
+pure logic tests run in plain Node.
 
 ### Manual browser check
 
 With the dev stack running, open `http://127.0.0.1:8080/app` and check (steps 1 and 2 work with the
 fake generation provider):
 
-1. Upload `tests/fixtures/documents/facts_small_en.pdf`. It shows Queued/Processing with progress,
-   then Ready, and is selected automatically.
-2. Ask "What is the warranty period?". The answer streams with a blinking cursor, ends as Complete
-   and lists a source for `facts_small_en.pdf` with a page (p. 1).
+1. Upload `tests/fixtures/documents/facts_small_en.pdf`. Its row shows the upload progress, then
+   Queued and Indexing with a percentage, then Ready, and it is selected automatically. The line
+   under the composer reads "Answering from 1 of 1 document".
+2. Ask "What is the warranty period?". The answer streams with a blinking caret after the text and
+   cites its sources as `[1]`. The evidence panel (the right column at 1280 px and wider, otherwise
+   the drawer opened by a citation or "Show evidence") lists the quote from
+   `facts_small_en.pdf, page 1`; clicking `[1]` highlights it.
 3. Ask another question and reload the page while it is still streaming. After the reload the
-   earlier turn is shown as Interrupted (the conversation is restored from the tab's session storage
-   through `GET /api/conversations/{id}`). This step needs the real generation provider
-   (`SOURCEHAVEN_GENERATION_PROVIDER=openai`): the fake one streams its whole answer at once, so the
-   turn completes before a reload can interrupt it.
+   earlier turn ends with "This answer is incomplete." (the conversation is restored from the tab's
+   session storage through `GET /api/conversations/{id}`). This step needs the real generation
+   provider (`SOURCEHAVEN_GENERATION_PROVIDER=openai`): the fake one streams its whole answer at
+   once, so the turn completes before a reload can interrupt it.
 
 ## Current limitations
 

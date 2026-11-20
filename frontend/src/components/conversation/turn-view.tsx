@@ -27,10 +27,17 @@ function describeSources(cited: readonly TurnSource[]): string {
   return `Sources from ${documents} ${documents === 1 ? "document" : "documents"}`;
 }
 
+/**
+ * Show one question and its answer.
+ *
+ * `generating` reports whether any answer in the conversation is being generated; Try again is
+ * hidden meanwhile, because a second question cannot start until the first ends.
+ */
 export function TurnView({
   turn,
   active,
   activeLabel,
+  generating,
   onActivate,
   onRetry,
   onShowEvidence,
@@ -38,6 +45,7 @@ export function TurnView({
   turn: TurnViewModel;
   active: boolean;
   activeLabel: string | null;
+  generating: boolean;
   onActivate: (turnKey: string, label?: string) => void;
   onRetry: (question: string) => void;
   onShowEvidence: () => void;
@@ -46,13 +54,15 @@ export function TurnView({
   const citationHandled: RefObject<boolean> = useRef<boolean>(false);
   const cited: TurnSource[] = turn.sources.filter((source: TurnSource) => source.cited);
   const knownLabels: ReadonlySet<string> = new Set(cited.map((source: TurnSource) => source.label));
-  const generating: boolean = turn.status === "generating";
+  const streaming: boolean = turn.status === "generating";
   const problem: string | null = problemText(turn);
 
   function handleTurnClick(): void {
     const alreadyHandled: boolean = citationHandled.current;
     citationHandled.current = false;
-    if (!active && !alreadyHandled) {
+    // A drag that selects text to copy it ends with a click; it should not switch the evidence.
+    const selectingText: boolean = window.getSelection()?.isCollapsed === false;
+    if (!active && !alreadyHandled && !selectingText) {
       onActivate(turn.key);
     }
   }
@@ -65,12 +75,12 @@ export function TurnView({
   return (
     <article
       className={active ? `${styles.turn} ${styles.active}` : `${styles.turn} ${styles.past}`}
-      aria-busy={generating}
+      aria-busy={streaming}
       aria-current={active ? "true" : undefined}
       onClick={handleTurnClick}
     >
       {turn.question !== "" && <p className={styles.question}>{turn.question}</p>}
-      {generating && turn.text === "" ? (
+      {streaming && turn.text === "" ? (
         <p className={styles.status}>{SEARCHING_TEXT}</p>
       ) : (
         <AnswerMarkdown
@@ -78,13 +88,13 @@ export function TurnView({
           knownLabels={knownLabels}
           activeLabel={active ? activeLabel : null}
           onCitation={handleCitation}
-          streaming={generating}
+          streaming={streaming}
         />
       )}
       {problem !== null && (
         <p className={styles.problem} role="alert">
           {problem}
-          {turn.status === "failed" && turn.retryable && turn.question !== "" && (
+          {turn.status === "failed" && turn.retryable && turn.question !== "" && !generating && (
             <>
               {" "}
               <button

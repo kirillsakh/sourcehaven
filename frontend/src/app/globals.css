@@ -1,4 +1,6 @@
 :root {
+  /* Light theme only for now: a dark theme returns later as its own pass. */
+  color-scheme: light;
   --paper: #ffffff;
   --ink: #1d2433;
   --graphite: #4a5263;
@@ -12,22 +14,6 @@
   --bad: #b42318;
   --font-ui: "Atkinson Hyperlegible Next Variable", ui-sans-serif, system-ui, sans-serif;
   --font-quote: "Source Serif 4 Variable", Georgia, serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #12161f;
-    --ink: #e6e9ef;
-    --graphite: #a9b1c1;
-    --rule: #2a3242;
-    --wash: #1a202b;
-    --panel: #161b26;
-    --prussian: #8fb3ff;
-    --highlighter: rgba(255, 231, 116, 0.35);
-    --ok: #6fd08c;
-    --warn: #f0b955;
-    --bad: #ff8a80;
-  }
 }
 
 * {

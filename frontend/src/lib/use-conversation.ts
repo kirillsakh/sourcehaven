@@ -170,9 +170,12 @@ export function useConversation(limits: SessionLimits | null): ConversationState
     [],
   );
 
-  const updateTurn = useCallback((key: string, change: (turn: TurnViewModel) => TurnViewModel) => {
-    setTurns((previous) => previous.map((turn) => (turn.key === key ? change(turn) : turn)));
-  }, []);
+  const updateTurn: (key: string, change: (turn: TurnViewModel) => TurnViewModel) => void =
+    useCallback((key: string, change: (turn: TurnViewModel) => TurnViewModel): void => {
+      setTurns((previous: TurnViewModel[]): TurnViewModel[] =>
+        previous.map((turn: TurnViewModel) => (turn.key === key ? change(turn) : turn)),
+      );
+    }, []);
 
   const ask = useCallback(
     async (text: string, documentIds: string[]): Promise<void> => {

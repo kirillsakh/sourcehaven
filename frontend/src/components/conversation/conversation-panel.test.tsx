@@ -57,6 +57,7 @@ function renderPanel(
     selected?: string[];
     turns?: TurnViewModel[];
     question?: string;
+    generating?: boolean;
   } = {},
 ): Handlers {
   const handlers: Handlers = {
@@ -76,7 +77,7 @@ function renderPanel(
       turns={options.turns ?? []}
       activeTurnKey={null}
       activeLabel={null}
-      generating={false}
+      generating={options.generating ?? false}
       question={options.question ?? ""}
       askError={null}
       {...handlers}
@@ -167,6 +168,17 @@ describe("ConversationPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(handlers.onAsk).toHaveBeenCalledExactlyOnceWith("First question?", ["a"]);
+  });
+
+  it("hides Try again while an answer is being generated", () => {
+    renderPanel({
+      documents: [doc("a")],
+      selected: ["a"],
+      turns: [turn("t1", "First question?")],
+      generating: true,
+    });
+
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
   });
 });
 

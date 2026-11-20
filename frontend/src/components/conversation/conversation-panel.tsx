@@ -122,6 +122,7 @@ export function ConversationPanel({
               turn={turn}
               active={turn.key === activeTurnKey}
               activeLabel={activeLabel}
+              generating={generating}
               onActivate={onActivate}
               onRetry={(text: string): void => onAsk(text, readySelected)}
               onShowEvidence={onShowEvidence}
