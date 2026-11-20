@@ -15,6 +15,7 @@ from sourcehaven.qa.service import QAService, TurnStream
 from sourcehaven.storage.repositories.conversations import NewTurn, add_generating_turn
 from tests.support.embeddings import (
     CountingEmbedder,
+    DocumentControlledEmbedder,
     QueryFailingEmbedder,
     QuoteFailingEmbedder,
 )
@@ -504,3 +505,54 @@ async def test_passage_sentences_are_embedded_while_the_answer_streams(
         gate.set()
         assert (await stream.collect_rest())[-1].name == "done"
     assert embedder.document_batches == 1 and embedder.query_batches == 1
+
+
+async def test_passage_embedding_failure_keeps_the_passage_start_and_completes(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    embedder: DocumentControlledEmbedder = DocumentControlledEmbedder()
+    model: ScriptedChatModel = ScriptedChatModel(script=["The warranty is 24 months [S1]."])
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model, embedder=embedder)
+    )
+    embedder.fail_documents = True
+    events: list[SseEvent] = await visitor.ask("How long is the warranty period?", [doc])
+    assert events[-1].name == "done" and events[-1].data["status"] == "complete"
+    assert events[-2].data["sources"][0]["quote"].startswith("The Sourcehaven warranty")
+
+
+async def test_quote_selection_timeout_keeps_the_passage_start_and_completes(
+    ready_visitor: ReadyVisitorFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(qa_service, "QUOTE_SELECTION_TIMEOUT_SECONDS", 0.1)
+    embedder: DocumentControlledEmbedder = DocumentControlledEmbedder()
+    model: ScriptedChatModel = ScriptedChatModel(script=["The warranty is 24 months [S1]."])
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model, embedder=embedder)
+    )
+    embedder.block_documents = True
+    events: list[SseEvent] = await visitor.ask("How long is the warranty period?", [doc])
+    assert events[-1].name == "done" and events[-1].data["status"] == "complete"
+    assert events[-2].data["sources"][0]["quote"].startswith("The Sourcehaven warranty")
+    assert embedder.cancelled
+
+
+async def test_disconnect_cancels_the_passage_embedding(
+    ready_visitor: ReadyVisitorFactory,
+) -> None:
+    gate: asyncio.Event = asyncio.Event()
+    embedder: DocumentControlledEmbedder = DocumentControlledEmbedder()
+    model: ScriptedChatModel = ScriptedChatModel(script=["Started ", "never sent"], gate=gate)
+    visitor, (doc,) = await ready_visitor(
+        "facts_small_en.pdf", overrides=ContainerOverrides(chat_model=model, embedder=embedder)
+    )
+    embedder.block_documents = True
+    async with visitor.stream_question("warranty?", [doc]) as stream:
+        await stream.read_until("delta")
+        await asyncio.wait_for(embedder.blocked.wait(), timeout=5)
+
+    async def cancelled() -> bool:
+        return embedder.cancelled
+
+    await eventually(cancelled, until=lambda flag: flag)
+    gate.set()

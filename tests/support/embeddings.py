@@ -182,3 +182,29 @@ class CountingEmbedder(HashEmbedder):
     async def embed_queries(self, texts: Sequence[str]) -> list[list[float]]:
         self.query_batches += 1
         return await super().embed_queries(texts)
+
+
+class DocumentControlledEmbedder(HashEmbedder):
+    """Embeds like `HashEmbedder` until told to fail or block document embedding.
+
+    Set the controls after ingestion, so only quote selection's passage embedding is affected.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.fail_documents: bool = False
+        self.block_documents: bool = False
+        self.blocked: asyncio.Event = asyncio.Event()
+        self.cancelled: bool = False
+
+    async def embed_documents(self, texts: Sequence[str]) -> list[list[float]]:
+        if self.fail_documents:
+            raise EmbedderUnavailable()
+        if self.block_documents:
+            self.blocked.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                self.cancelled = True
+                raise
+        return await super().embed_documents(texts)

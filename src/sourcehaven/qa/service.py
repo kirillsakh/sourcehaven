@@ -32,7 +32,12 @@ from sourcehaven.qa.events import (
     TurnEvent,
     TurnStarted,
 )
-from sourcehaven.qa.quotes import PassageSentences, embed_passage_sentences, select_quotes
+from sourcehaven.qa.quotes import (
+    QUOTE_SELECTION_TIMEOUT_SECONDS,
+    PassageSentences,
+    embed_passage_sentences,
+    select_quotes,
+)
 from sourcehaven.retrieval.search import search_evidence, select_evidence
 from sourcehaven.storage.db import owner_session
 from sourcehaven.storage.repositories.conversations import (
@@ -432,6 +437,7 @@ class QAService:
                 passage_sentences=passage_sentences,
                 question_vector=question_vector,
                 embedder=self._container.embedder,
+                timeout_seconds=QUOTE_SELECTION_TIMEOUT_SECONDS,
             )
         except Exception as error:
             # Quotes are a convenience: the answer completes with passage-start quotes instead.
