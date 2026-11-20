@@ -1,0 +1,145 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+
+<h2>A, with its own identity: "ink and highlighter"</h2>
+<p class="subtitle">Still white, light and readable, but built around what Sourcehaven actually does: answering from your documents and showing the evidence. <b>Hover S1 or S2 in the answer</b> to see the signature interaction. Layout is still provisional.</p>
+
+<style>
+  .ih {
+    --paper: #ffffff; --ink: #1d2433; --graphite: #4a5263; --rule: #d9dde5;
+    --wash: #f3f5f9; --prussian: #1f4e8c; --hl: #ffe774;
+    --ok: #1f7a4d; --warn: #8a5a00;
+    font-family: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px; line-height: 1.55; color: var(--ink); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 14px; overflow: hidden;
+  }
+  .ih * { box-sizing: border-box; }
+  .ih .top { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 24px; border-bottom: 1px solid var(--rule); }
+  .ih .brand { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; }
+  .ih .brand span { color: var(--prussian); }
+  .ih .note { color: var(--graphite); font-size: 13.5px; }
+  .ih .grid { display: grid; grid-template-columns: 290px 1fr; }
+  .ih .side { padding: 20px; border-right: 1px solid var(--rule); display: flex; flex-direction: column; gap: 14px; }
+  .ih .side h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; justify-content: space-between; }
+  .ih .side h3 small { font-weight: 400; color: var(--graphite); font-size: 13.5px; }
+  .ih .tray { background: var(--wash); border: 1.5px dashed #b7c0d0; border-radius: 10px; padding: 16px; text-align: center; }
+  .ih .tray strong { display: block; font-weight: 600; }
+  .ih .tray a { color: var(--prussian); text-decoration: underline; text-underline-offset: 3px; }
+  .ih .tray small { color: var(--graphite); font-size: 13px; }
+  .ih ul { list-style: none; margin: 0; padding: 0; }
+  .ih .doc { display: grid; grid-template-columns: 18px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  .ih .doc:last-child { border-bottom: 0; }
+  .ih .chk { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid #8b93a3; margin-top: 2px; display: grid; place-items: center; color: #fff; font-size: 12px; }
+  .ih .chk.on { background: var(--prussian); border-color: var(--prussian); }
+  .ih .chk.off { background: var(--wash); border-color: var(--rule); }
+  .ih .name { font-weight: 500; overflow-wrap: anywhere; }
+  .ih .state { font-size: 13.5px; color: var(--graphite); }
+  .ih .state.ok::before { content: "Ready"; color: var(--ok); font-weight: 600; margin-right: 6px; }
+  .ih .state.wk::before { content: "Reading pages"; color: var(--warn); font-weight: 600; margin-right: 6px; }
+  .ih .track { height: 3px; background: var(--rule); border-radius: 2px; margin-top: 6px; }
+  .ih .track i { display: block; height: 100%; width: 60%; background: var(--prussian); border-radius: 2px; }
+
+  .ih .main { padding: 26px 32px 22px; display: flex; flex-direction: column; gap: 18px; min-height: 520px; }
+  .ih .ask-q { font-size: 17px; font-weight: 600; max-width: 62ch; }
+  .ih .answer { font-size: 16.5px; line-height: 1.7; max-width: 64ch; }
+  .ih .answer b { font-weight: 600; }
+  .ih .cite {
+    font-size: 12.5px; font-weight: 700; color: var(--prussian); background: transparent;
+    border: 1.5px solid var(--prussian); border-radius: 4px; padding: 0 4px; margin: 0 2px;
+    vertical-align: 2px; cursor: pointer;
+  }
+  .ih .cite:hover { background: var(--prussian); color: #fff; }
+
+  .ih .evidence { display: flex; flex-direction: column; gap: 14px; max-width: 64ch; }
+  .ih .evidence h4 { margin: 4px 0 -4px; font-size: 14px; font-weight: 600; color: var(--graphite); }
+  .ih .ex { display: grid; grid-template-columns: 34px 1fr; gap: 12px; }
+  .ih .ex .lab { font-size: 12.5px; font-weight: 700; color: var(--prussian); border: 1.5px solid var(--prussian); border-radius: 4px; height: 22px; display: grid; place-items: center; margin-top: 2px; }
+  .ih .ex .from { font-size: 13.5px; color: var(--graphite); margin-bottom: 4px; }
+  .ih .ex .from b { color: var(--ink); font-weight: 600; }
+  .ih .ex blockquote { margin: 0; font-family: "Source Serif 4", Georgia, serif; font-size: 16px; line-height: 1.65; color: var(--ink); font-optical-sizing: auto; }
+  .ih .ex mark {
+    background: linear-gradient(transparent 55%, var(--hl) 55%) no-repeat;
+    background-size: 0% 100%; transition: background-size .35s ease; color: inherit;
+  }
+  .ih .ex.s1 mark { background-size: 100% 100%; }
+  .ih:has(.cite.s2:hover) .ex.s1 mark { background-size: 0% 100%; }
+  .ih:has(.cite.s2:hover) .ex.s2 mark,
+  .ih:has(.cite.s1:hover) .ex.s1 mark { background-size: 100% 100%; }
+  @media (prefers-reduced-motion: reduce) { .ih .ex mark { transition: none; } }
+  .ih details { font-size: 14px; color: var(--graphite); }
+  .ih details summary { cursor: pointer; }
+
+  .ih .composer { margin-top: auto; border: 1.5px solid #8b93a3; border-radius: 12px; padding: 10px 10px 10px 16px; display: flex; gap: 10px; align-items: center; }
+  .ih .composer span { flex: 1; color: var(--graphite); }
+  .ih .btn { background: var(--prussian); color: #fff; font-weight: 600; border-radius: 8px; padding: 8px 18px; }
+  .ih .scope { font-size: 13.5px; color: var(--graphite); margin-top: -10px; }
+
+  .tokens { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 10px 0 18px; }
+  .tok { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; font-size: 0.8rem; }
+  .tok i { display: block; height: 34px; }
+  .tok div { padding: 6px 8px; }
+  .why { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px 24px; }
+  .why div { font-size: 0.9rem; }
+  .why b { display: block; }
+</style>
+
+<div class="ih">
+  <div class="top">
+    <div class="brand">Source<span>haven</span></div>
+    <div class="note">Files and answers are deleted 24 hours after your last activity.</div>
+  </div>
+  <div class="grid">
+    <aside class="side">
+      <h3>Your documents <small>3 of 10</small></h3>
+      <div class="tray">
+        <strong>Drop PDFs here</strong>
+        <small>or <a>choose files</a>. Up to 20 MB and 300 pages each.</small>
+      </div>
+      <ul>
+        <li class="doc"><div class="chk on">✓</div><div><div class="name">employment-contract.pdf</div><div class="state ok">14 pages</div></div></li>
+        <li class="doc"><div class="chk on">✓</div><div><div class="name">annex-b.pdf</div><div class="state ok">3 pages</div></div></li>
+        <li class="doc"><div class="chk off"></div><div><div class="name">quarterly-report.pdf</div><div class="state wk">18 of 30</div><div class="track"><i></i></div></div></li>
+      </ul>
+    </aside>
+    <section class="main">
+      <div class="ask-q">How long is the notice period, and can it be shortened?</div>
+      <div class="answer">
+        The notice period is <b>three months</b> for either party<span class="cite s1">S1</span>. It can be shortened only if both sides agree in writing<span class="cite s2">S2</span>.
+      </div>
+      <div class="evidence">
+        <h4>Where this comes from</h4>
+        <div class="ex s1">
+          <div class="lab">S1</div>
+          <div><div class="from"><b>employment-contract.pdf</b>, page 4</div>
+            <blockquote>“Either party may terminate this agreement by <mark>giving three months’ written notice</mark> to the other party.”</blockquote></div>
+        </div>
+        <div class="ex s2">
+          <div class="lab">S2</div>
+          <div><div class="from"><b>annex-b.pdf</b>, page 2</div>
+            <blockquote>“The notice period <mark>may be reduced only by mutual written agreement</mark> of the parties.”</blockquote></div>
+        </div>
+        <details><summary>3 more passages were read but not cited</summary></details>
+      </div>
+      <div class="composer"><span>Ask a question about your selected documents</span><div class="btn">Ask</div></div>
+      <div class="scope">Answers use 2 selected documents.</div>
+    </section>
+  </div>
+</div>
+
+<div class="section">
+  <h3>The system</h3>
+  <div class="tokens">
+    <div class="tok"><i style="background:#ffffff;border-bottom:1px solid #d9dde5"></i><div><b>Paper</b> #FFFFFF<br>background</div></div>
+    <div class="tok"><i style="background:#1d2433"></i><div><b>Ink</b> #1D2433<br>text, 14:1</div></div>
+    <div class="tok"><i style="background:#4a5263"></i><div><b>Graphite</b> #4A5263<br>secondary, 7.9:1</div></div>
+    <div class="tok"><i style="background:#1f4e8c"></i><div><b>Prussian</b> #1F4E8C<br>actions, citations</div></div>
+    <div class="tok"><i style="background:#ffe774"></i><div><b>Highlighter</b> #FFE774<br>evidence only</div></div>
+    <div class="tok"><i style="background:#d9dde5"></i><div><b>Rule</b> #D9DDE5<br>borders</div></div>
+  </div>
+  <div class="why">
+    <div><b>Two voices, two typefaces</b>The app speaks in Atkinson Hyperlegible Next, designed by the Braille Institute for maximum legibility. Quotes from your documents are set in Source Serif 4, so evidence visibly reads as "from the document".</div>
+    <div><b>One bold thing: the highlighter</b>Citations are ink-blue tabs; pointing at or clicking one sweeps the highlighter across its quote. Yellow is used for nothing else. (The mockup marks a phrase; the API only knows the whole quote, so the real app highlights the whole quote.)</div>
+    <div><b>Everything else stays quiet</b>No cards, shadows or gradients. Lists are separated by rules, not boxes. Labels are sentence case. Radius varies by role: composer 12, tray 10, buttons 8, tabs 4.</div>
+    <div><b>Readable by default</b>16.5 px answers, 15 px interface, 13.5 px minimum, answers capped at 64 characters per line. Both fonts are free (SIL OFL) and bundled with the app.</div>
+  </div>
+</div>

@@ -1029,7 +1029,8 @@ Each milestone is a set of atomic commits with tests and documentation.
    - Deletion, end session, expiry sweeper, orphan cleanup.
    - Restart tests.
 7. **M6 — Product UI and public pages**
-   - Full app screen.
+   - Full app screen. Its foundation (visual system, layout, drag-and-drop upload, evidence panel)
+     was pulled forward before M2: see `2026-11-20-app-ui-foundation-design.md`.
    - Landing, how-it-works and privacy pages with metadata, sitemap and robots.
    - Security headers.
 8. **M7 — Deployment readiness**

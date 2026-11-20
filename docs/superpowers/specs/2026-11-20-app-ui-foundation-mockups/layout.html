@@ -1,0 +1,159 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+
+<h2>Layout B with [1] citations, plus the upload states</h2>
+<p class="subtitle">Top: the main screen. <b>Click [1] or [2]</b> in the latest answer to move the highlighter in the evidence panel. Below: what the app looks like on the first visit, while dragging files, and while uploading.</p>
+
+<style>
+  .b2 { --ink:#1d2433; --gr:#4a5263; --rule:#d9dde5; --wash:#f3f5f9; --pr:#1f4e8c; --hl:#ffe774; --ok:#1f7a4d; --warn:#8a5a00; --bad:#b42318;
+    font-family:"Atkinson Hyperlegible Next",system-ui,sans-serif; color:var(--ink); background:#fff;
+    border:1px solid var(--rule); border-radius:14px; overflow:hidden; font-size:14px; line-height:1.55; }
+  .b2 * { box-sizing:border-box; }
+  .b2 .top { display:flex; justify-content:space-between; align-items:baseline; padding:12px 20px; border-bottom:1px solid var(--rule); }
+  .b2 .brand { font-weight:700; font-size:17px; } .b2 .brand span { color:var(--pr); }
+  .b2 .note { color:var(--gr); font-size:13px; }
+  .b2 .row { display:grid; grid-template-columns:230px minmax(0,1fr) 300px; min-height:520px; }
+  .b2 .col { padding:18px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  .b2 .col + .col { border-left:1px solid var(--rule); }
+  .b2 h3 { margin:0; font-size:14px; font-weight:600; display:flex; justify-content:space-between; align-items:baseline; }
+  .b2 h3 small { color:var(--gr); font-weight:400; font-size:13px; }
+  .b2 .tray { background:var(--wash); border:1.5px dashed #b7c0d0; border-radius:10px; padding:12px; text-align:center; font-size:13px; color:var(--gr); }
+  .b2 .tray b { display:block; color:var(--ink); font-weight:600; font-size:14px; }
+  .b2 .tray u { color:var(--pr); text-underline-offset:3px; }
+  .b2 ul { list-style:none; margin:0; padding:0; }
+  .b2 .doc { display:grid; grid-template-columns:16px 1fr; gap:9px; padding:9px 0; border-bottom:1px solid var(--rule); }
+  .b2 .doc:last-child { border-bottom:0; }
+  .b2 .ck { width:16px; height:16px; border-radius:4px; background:var(--pr); margin-top:2px; color:#fff; font-size:11px; display:grid; place-items:center; }
+  .b2 .ck.o { background:var(--wash); border:1.5px solid var(--rule); }
+  .b2 .nm { font-weight:500; overflow-wrap:anywhere; font-size:13.5px; }
+  .b2 .st { font-size:12.5px; color:var(--gr); }
+  .b2 .st em { font-style:normal; font-weight:600; margin-right:5px; }
+  .b2 .st.ok em { color:var(--ok); } .b2 .st.wk em { color:var(--warn); } .b2 .st.bad em { color:var(--bad); }
+  .b2 .trk { height:3px; background:var(--rule); border-radius:2px; margin-top:5px; } .b2 .trk i { display:block; height:100%; background:var(--pr); border-radius:2px; }
+
+  .b2 .turn { display:flex; flex-direction:column; gap:6px; padding:4px 10px 12px; margin:0 -10px; border-radius:10px; border:1.5px solid transparent; }
+  .b2 .turn.past { color:var(--gr); }
+  .b2 .turn.sel { border-color:var(--rule); background:#fbfcfd; }
+  .b2 .q { font-weight:600; font-size:15.5px; color:var(--ink); }
+  .b2 .turn.past .q { color:var(--gr); }
+  .b2 .ans { font-size:16px; line-height:1.7; max-width:64ch; }
+  .b2 .ans ul { padding-left:20px; list-style:disc; margin:6px 0; }
+  .b2 .c { color:var(--pr); font-weight:700; font-size:13px; cursor:pointer; padding:0 1px; border-radius:3px; vertical-align:1px; }
+  .b2 .c:hover, .b2 .c.on { background:var(--hl); color:var(--ink); }
+  .b2 .meta { font-size:12.5px; color:var(--gr); }
+  .b2 .comp { margin-top:auto; border:1.5px solid #8b93a3; border-radius:12px; padding:9px 9px 9px 14px; display:flex; gap:10px; align-items:center; }
+  .b2 .comp span { flex:1; color:var(--gr); }
+  .b2 .btn { background:var(--pr); color:#fff; font-weight:600; border-radius:8px; padding:7px 16px; }
+  .b2 .scope { font-size:12.5px; color:var(--gr); margin-top:-6px; }
+
+  .b2 .ev { background:#fbfcfd; }
+  .b2 .ev .for { font-size:12.5px; color:var(--gr); margin-top:-8px; }
+  .b2 .ex { display:grid; grid-template-columns:28px 1fr; gap:8px; padding:10px 0; border-bottom:1px solid var(--rule); }
+  .b2 .ex .n { color:var(--pr); font-weight:700; font-size:13px; padding-top:1px; }
+  .b2 .ex .from { font-size:12.5px; color:var(--gr); margin-bottom:3px; } .b2 .ex .from b { color:var(--ink); font-weight:600; }
+  .b2 .ex blockquote { margin:0; font-family:"Source Serif 4",Georgia,serif; font-size:15px; line-height:1.6; }
+  .b2 .ex mark { background:linear-gradient(transparent 50%, var(--hl) 50%) no-repeat; background-size:0% 100%; transition:background-size .35s ease; color:inherit; }
+  .b2 .ex.e1 mark { background-size:100% 100%; }
+  .b2:has(.c.k2:hover) .ex.e1 mark { background-size:0% 100%; }
+  .b2:has(.c.k2:hover) .ex.e2 mark, .b2:has(.c.k1:hover) .ex.e1 mark { background-size:100% 100%; }
+  @media (prefers-reduced-motion: reduce) { .b2 .ex mark { transition:none; } }
+  .b2 details { font-size:13px; color:var(--gr); } .b2 summary { cursor:pointer; }
+
+  /* state thumbnails */
+  .states { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:20px; }
+  .st-card h4 { margin:0 0 6px; font-size:.95rem; }
+  .st-card p { margin:6px 0 0; font-size:.85rem; color:var(--text-secondary); }
+  .mini { --ink:#1d2433; --gr:#4a5263; --rule:#d9dde5; --wash:#f3f5f9; --pr:#1f4e8c; --ok:#1f7a4d; --warn:#8a5a00; --bad:#b42318;
+    font-family:"Atkinson Hyperlegible Next",system-ui,sans-serif; color:var(--ink); background:#fff; border:1px solid var(--rule);
+    border-radius:10px; height:210px; position:relative; overflow:hidden; font-size:11px; display:grid; grid-template-columns:110px 1fr 90px; }
+  .mini > div { padding:10px; } .mini > div + div { border-left:1px solid var(--rule); }
+  .mini .ttl { font-weight:600; margin-bottom:6px; }
+  .mini .dim { color:var(--gr); }
+  .mini .hero { display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; gap:6px; }
+  .mini .hero b { font-size:15px; }
+  .mini .drop { border:1.5px dashed #b7c0d0; background:var(--wash); border-radius:9px; padding:14px 10px; width:90%; }
+  .mini .drop u { color:var(--pr); }
+  .mini .overlay { position:absolute; inset:6px; border:2.5px dashed var(--pr); border-radius:10px; background:rgba(31,78,140,.08); display:grid; place-items:center; text-align:center; backdrop-filter: blur(1px); }
+  .mini .overlay b { font-size:15px; color:var(--pr); display:block; }
+  .mini .r { padding:5px 0; border-bottom:1px solid var(--rule); }
+  .mini .r em { font-style:normal; font-weight:600; }
+  .mini .ok em { color:var(--ok); } .mini .wk em { color:var(--warn); } .mini .bad em { color:var(--bad); }
+  .mini .t { height:2px; background:var(--rule); margin-top:3px; } .mini .t i { display:block; height:100%; background:var(--pr); }
+</style>
+
+<div class="b2">
+  <div class="top"><div class="brand">Source<span>haven</span></div><div class="note">Files and answers are deleted 24 hours after your last activity.</div></div>
+  <div class="row">
+    <aside class="col">
+      <h3>Your documents <small>3 of 10</small></h3>
+      <div class="tray"><b>Drop PDFs here</b>or <u>choose files</u>. Up to 20 MB and 300 pages each.</div>
+      <ul>
+        <li class="doc"><div class="ck">✓</div><div><div class="nm">employment-contract.pdf</div><div class="st ok"><em>Ready</em>14 pages</div></div></li>
+        <li class="doc"><div class="ck">✓</div><div><div class="nm">annex-b.pdf</div><div class="st ok"><em>Ready</em>3 pages</div></div></li>
+        <li class="doc"><div class="ck o"></div><div><div class="nm">quarterly-report.pdf</div><div class="st wk"><em>Indexing</em>60%</div><div class="trk"><i style="width:60%"></i></div></div></li>
+      </ul>
+    </aside>
+
+    <section class="col">
+      <div class="turn past">
+        <div class="q">Who are the parties to the contract?</div>
+        <div class="ans">Northwind Ltd, as employer, and Dana Kowalski, as employee <span class="c">[1]</span>.</div>
+      </div>
+      <div class="turn sel">
+        <div class="q">How long is the notice period, and can it be shortened?</div>
+        <div class="ans">
+          The notice period is <b>three months</b> for either party <span class="c k1 on">[1]</span>. It can be shortened only if:
+          <ul><li>both sides agree in writing <span class="c k2">[2]</span>, or</li><li>the employee is dismissed for gross misconduct <span class="c">[3]</span>.</li></ul>
+        </div>
+        <div class="meta">Answered from 2 documents. Evidence on the right.</div>
+      </div>
+      <div class="comp"><span>Ask a question about your selected documents</span><div class="btn">Ask</div></div>
+      <div class="scope">Answers use 2 selected documents.</div>
+    </section>
+
+    <aside class="col ev">
+      <h3>Evidence</h3>
+      <div class="for">For “How long is the notice period…”</div>
+      <div>
+        <div class="ex e1"><div class="n">[1]</div><div><div class="from"><b>employment-contract.pdf</b>, page 4</div><blockquote><mark>“Either party may terminate this agreement by giving three months’ written notice to the other party.”</mark></blockquote></div></div>
+        <div class="ex e2"><div class="n">[2]</div><div><div class="from"><b>annex-b.pdf</b>, page 2</div><blockquote><mark>“The notice period may be reduced only by mutual written agreement of the parties.”</mark></blockquote></div></div>
+        <div class="ex e3"><div class="n">[3]</div><div><div class="from"><b>employment-contract.pdf</b>, pages 9–10</div><blockquote><mark>“In cases of gross misconduct the employer may terminate with immediate effect.”</mark></blockquote></div></div>
+      </div>
+      <details><summary>2 more passages were read but not cited</summary></details>
+    </aside>
+  </div>
+</div>
+
+<div class="states">
+  <div class="st-card">
+    <h4>1. First visit</h4>
+    <div class="mini">
+      <div><div class="ttl">Your documents</div><div class="dim">None yet</div></div>
+      <div class="hero"><b>Ask questions about your PDFs</b><div class="dim">Every answer shows the passages it came from.</div><div class="drop"><b style="font-size:12px">Drop PDFs here</b><br><span class="dim">or <u>choose files</u></span></div></div>
+      <div class="dim">Evidence for each answer appears here.</div>
+    </div>
+    <p>The whole middle is a drop target, so there's one obvious first step.</p>
+  </div>
+  <div class="st-card">
+    <h4>2. Dragging files over the window</h4>
+    <div class="mini">
+      <div><div class="ttl">Your documents</div></div><div></div><div></div>
+      <div class="overlay"><div><b>Drop to upload 2 PDFs</b><span class="dim">Up to 20 MB and 300 pages each</span></div></div>
+    </div>
+    <p>You can drop anywhere on the page, not only on the small tray.</p>
+  </div>
+  <div class="st-card">
+    <h4>3. Uploading and indexing</h4>
+    <div class="mini">
+      <div>
+        <div class="ttl">Your documents</div>
+        <div class="r wk"><div>contract.pdf</div><em>Uploading</em><span class="dim">45%</span><div class="t"><i style="width:45%"></i></div></div>
+        <div class="r wk"><div>annex.pdf</div><em>Indexing</em><span class="dim">20%</span><div class="t"><i style="width:20%"></i></div></div>
+        <div class="r bad"><div>photo.png</div><em>Not a PDF</em></div>
+      </div>
+      <div class="hero"><div class="dim">You can ask as soon as one document is ready.</div></div>
+      <div></div>
+    </div>
+    <p>Each file shows its own progress; problems stay on the file they belong to.</p>
+  </div>
+</div>
