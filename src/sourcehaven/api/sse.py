@@ -4,7 +4,6 @@ from fastapi.sse import ServerSentEvent
 
 from sourcehaven.api.schemas import PageRange, TurnSourceResponse
 from sourcehaven.domain.models import Citation
-from sourcehaven.qa.citations import quote_snapshot
 from sourcehaven.qa.events import (
     Delta,
     Done,
@@ -24,7 +23,7 @@ def _source(citation: Citation) -> dict[str, object]:
         document_id=citation.evidence.document_id,
         document_name=citation.evidence.document_name,
         pages=PageRange(start=citation.evidence.span.start, end=citation.evidence.span.end),
-        quote=quote_snapshot(citation.evidence.text),
+        quote=citation.quote,
     ).model_dump(mode="json")
 
 

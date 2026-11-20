@@ -53,7 +53,8 @@ def validate_citations(text: str, supplied: Sequence[LabelledEvidence]) -> Citat
 
     Returns:
         The supplied passages ordered numerically by label (so `S2` precedes `S10`) with their
-        cited flag, and the labels that appear in `text` without a supplied passage.
+        cited flag and passage-start quote, and the labels that appear in `text` without a
+        supplied passage.
 
     Raises:
         ValueError: If a supplied label is not `S` followed by ASCII digits, or two supplied
@@ -66,7 +67,12 @@ def validate_citations(text: str, supplied: Sequence[LabelledEvidence]) -> Citat
         raise ValueError("Duplicate supplied labels")
     cited: set[str] = set(found)
     sources: list[Citation] = [
-        Citation(label=item.label, evidence=item.evidence, cited=item.label in cited)
+        Citation(
+            label=item.label,
+            evidence=item.evidence,
+            cited=item.label in cited,
+            quote=quote_snapshot(item.evidence.text),
+        )
         for item in ordered
     ]
     invalid_labels: list[str] = [label for label in dict.fromkeys(found) if label not in known]

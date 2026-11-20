@@ -101,8 +101,10 @@ class Citation:
         evidence: The supplied passage.
         cited: Whether the answer text contains the label. This does not mean the passage
             supports the claim next to it.
+        quote: The excerpt stored and shown with the citation, at most 300 characters.
     """
 
     label: str
     evidence: Evidence
     cited: bool
+    quote: str

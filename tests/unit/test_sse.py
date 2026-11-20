@@ -53,12 +53,18 @@ def test_sse_mapping_of_turn_progress_and_done() -> None:
     )
 
 
-def test_sse_mapping_of_sources_truncates_quotes() -> None:
-    long_text: str = "x" * 301
+def test_sse_mapping_of_sources_sends_each_citation_quote() -> None:
     result: CitationResult = CitationResult(
         sources=[
-            Citation(label="S1", evidence=_evidence("The warranty is 24 months."), cited=True),
-            Citation(label="S2", evidence=_evidence(long_text), cited=False),
+            Citation(
+                label="S1",
+                evidence=_evidence("The warranty is 24 months."),
+                cited=True,
+                quote="The warranty is 24 months.",
+            ),
+            Citation(
+                label="S2", evidence=_evidence("x" * 301), cited=False, quote="…chosen sentence."
+            ),
         ],
         invalid_labels=["S9"],
     )
@@ -80,7 +86,7 @@ def test_sse_mapping_of_sources_truncates_quotes() -> None:
                 "document_id": str(DOCUMENT_ID),
                 "document_name": "report.pdf",
                 "pages": {"start": 3, "end": 4},
-                "quote": "x" * 300,
+                "quote": "…chosen sentence.",
             },
         ],
         "invalid_citation_labels": ["S9"],
@@ -88,7 +94,9 @@ def test_sse_mapping_of_sources_truncates_quotes() -> None:
 
 
 def test_streamed_sources_have_the_stored_turn_shape() -> None:
-    citation: Citation = Citation(label="S1", evidence=_evidence("A fact."), cited=True)
+    citation: Citation = Citation(
+        label="S1", evidence=_evidence("A fact."), cited=True, quote="A fact."
+    )
     _, payload = encode_event(SourcesFinal(CitationResult(sources=[citation], invalid_labels=[])))
     streamed: object = payload["sources"]
     assert isinstance(streamed, list) and streamed

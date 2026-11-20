@@ -1,3 +1,4 @@
+from dataclasses import replace
 from uuid import uuid4
 
 import pytest
@@ -95,3 +96,10 @@ def test_supplied_label_must_be_s_followed_by_ascii_digits(label: str) -> None:
 def test_duplicate_supplied_labels_are_rejected() -> None:
     with pytest.raises(ValueError, match="Duplicate"):
         validate_citations("[S1]", [labelled("S1"), labelled("S1")])
+
+
+def test_sources_quote_the_passage_start() -> None:
+    item: LabelledEvidence = labelled("S1")
+    long: LabelledEvidence = replace(item, evidence=replace(item.evidence, text="x" * 301))
+    result: CitationResult = validate_citations("[S1]", [long])
+    assert result.sources[0].quote == "x" * 300

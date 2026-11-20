@@ -16,7 +16,6 @@ from sqlalchemy import Row, Select, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sourcehaven.domain.models import Citation, OwnerScope
-from sourcehaven.qa.citations import quote_snapshot
 from sourcehaven.storage.models import Conversation, Document, DocumentVersion, Turn, TurnSource
 
 FinalTurnStatus = Literal["complete", "interrupted", "failed"]
@@ -222,7 +221,7 @@ async def finish_turn(
             document_name_snapshot=citation.evidence.document_name,
             page_start=citation.evidence.span.start,
             page_end=citation.evidence.span.end,
-            quote_snapshot=quote_snapshot(citation.evidence.text),
+            quote_snapshot=citation.quote,
         )
         for citation in outcome.sources
     )

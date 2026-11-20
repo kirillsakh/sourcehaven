@@ -22,7 +22,7 @@ from sourcehaven.generation.prompts import (
     PromptBudget,
     assemble_answer_messages,
 )
-from sourcehaven.qa.citations import CitationResult, validate_citations
+from sourcehaven.qa.citations import CitationResult, quote_snapshot, validate_citations
 from sourcehaven.qa.events import (
     Delta,
     Done,
@@ -132,7 +132,15 @@ async def _closing[T](stream: AsyncIterator[T]) -> AsyncIterator[AsyncIterator[T
 
 def _unvalidated(supplied: Sequence[LabelledEvidence]) -> list[Citation]:
     """The supplied passages of an incomplete answer, none of them marked cited."""
-    return [Citation(label=item.label, evidence=item.evidence, cited=False) for item in supplied]
+    return [
+        Citation(
+            label=item.label,
+            evidence=item.evidence,
+            cited=False,
+            quote=quote_snapshot(item.evidence.text),
+        )
+        for item in supplied
+    ]
 
 
 class QAService:
