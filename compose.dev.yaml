@@ -1,0 +1,31 @@
+# Development overlay: plain HTTP on loopback, relaxed verification, database published for tests.
+# SOURCEHAVEN_GENERATION_PROVIDER and SOURCEHAVEN_EMBEDDING_PROVIDER come from .env; set them to
+# `fake` and `hash` to run the whole stack offline (see .env.example).
+x-dev-app-environment: &dev-app-environment
+  SOURCEHAVEN_HUMAN_VERIFICATION: disabled
+  SOURCEHAVEN_COOKIE_SECURE: "false"
+
+services:
+  db:
+    ports:
+      - "127.0.0.1:55432:5432"
+
+  migrate:
+    environment: *dev-app-environment
+
+  api:
+    environment:
+      <<: *dev-app-environment
+      # Caddy's address is assigned by Docker, so trust any peer. Safe here because the api is not
+      # published on the host and only containers on the Compose network can reach it. Production
+      # pins Caddy's address instead.
+      SOURCEHAVEN_TRUSTED_PROXY: "*"
+
+  worker:
+    environment: *dev-app-environment
+
+  caddy:
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./deploy/Caddyfile.dev:/etc/caddy/Caddyfile:ro

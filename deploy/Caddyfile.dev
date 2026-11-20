@@ -1,0 +1,11 @@
+# Development routing over plain HTTP. No `encode` directive: compressing would buffer the
+# server-sent events of /api/conversations/*/turns; reverse_proxy flushes text/event-stream
+# responses immediately.
+:8080 {
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

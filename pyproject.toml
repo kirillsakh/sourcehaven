@@ -1,0 +1,100 @@
+[project]
+name = "sourcehaven"
+version = "0.1.0"
+description = "Ask grounded, cited questions about your own documents."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "alembic>=1.20.1",
+    "anyio>=4.16.0",
+    "fastapi>=0.165.0",
+    "httpx>=0.28.1",
+    "langchain-core>=1.8.3",
+    "langchain-openai>=1.8.3",
+    "langchain-text-splitters>=1.1.3",
+    "pgvector>=0.5.1",
+    "psycopg[binary]>=3.3.9",
+    "pydantic>=2.14.4",
+    "pydantic-settings>=2.16.3",
+    "pypdf>=7.1.1",
+    "python-multipart>=0.0.34",
+    "sqlalchemy[asyncio]>=2.1.9",
+    "tiktoken>=0.14.0",
+    "tokenizers>=0.23.3",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+sourcehaven = "sourcehaven.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.9.17,<0.10"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy",
+    "pre-commit",
+    "ruff",
+]
+test = [
+    # Only to build AES-256 encrypted PDFs in tests; the app rejects encrypted PDFs. Capped
+    # below 49 because 49.x and later ship no macOS x86_64 wheel and would need a Rust toolchain.
+    "cryptography>=46.0.0,<49",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+    "reportlab>=5.1.0",
+    "types-reportlab>=5.1.0.20261104",
+]
+
+[tool.uv]
+default-groups = ["dev", "test"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+# Tests share the session loop so connections from session-scoped async fixtures stay usable.
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "integration: needs Compose Postgres",
+    "live: calls paid providers",
+]
+# langsmith's auto-loaded pytest plugin is unused here and emits Python 3.14 deprecation warnings.
+# langsmith (imported by langchain-core) calls the deprecated asyncio.iscoroutinefunction at import.
+filterwarnings = [
+    "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:langsmith._internal._beta_decorator",
+]
+addopts = "-m 'not integration and not live' --strict-markers -p no:langsmith_plugin"
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "TID", "ANN", "D", "RUF"]
+ignore = [
+    # Docstrings are written where callers need a contract, not on every symbol.
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+known-first-party = ["sourcehaven"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src", "tests"]
+warn_unreachable = true

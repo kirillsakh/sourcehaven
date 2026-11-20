@@ -1,0 +1,15 @@
+.git
+.claude
+.superpowers
+.venv
+.env*
+.mypy_cache
+.pytest_cache
+.ruff_cache
+__pycache__
+*.py[cod]
+build
+dist
+frontend
+tests
+docs

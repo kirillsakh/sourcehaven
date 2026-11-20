@@ -1,0 +1,40 @@
+# Local-only assistant instructions and settings
+/.claude/
+
+# Python environments and caches
+/.venv/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+/build/
+/dist/
+*.egg-info/
+
+# Secrets and environment files
+.env
+.env.*
+!.env.example
+
+# Runtime data: uploads, indexes, databases, model caches
+/data/
+/uploads/
+/var/
+*.sqlite
+*.sqlite3
+*.db
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Local agent workspaces
+/.superpowers/

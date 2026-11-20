@@ -1,0 +1,242 @@
+:root {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --muted: #5f6368;
+  --border: #d4d7dc;
+  --surface: #f5f6f8;
+  --accent: #2456d6;
+  --ok: #1b7a3d;
+  --warn: #8a5a00;
+  --danger: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121316;
+    --foreground: #ececec;
+    --muted: #9aa0a6;
+    --border: #3a3d44;
+    --surface: #1c1e23;
+    --accent: #8ab4ff;
+    --ok: #6fd08c;
+    --warn: #f0b955;
+    --danger: #ff8a80;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--background);
+}
+
+textarea {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  resize: vertical;
+}
+
+.shell {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.shell > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.shell h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 20rem 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 52rem) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.doc-list,
+.sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-list li {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.doc-list label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.doc-note {
+  margin-left: 1.5rem;
+  font-size: 0.8125rem;
+}
+
+progress {
+  width: 100%;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.badge.complete,
+.badge.ready {
+  color: var(--ok);
+}
+
+.badge.interrupted,
+.badge.queued,
+.badge.processing,
+.badge.generating {
+  color: var(--warn);
+}
+
+.badge.failed {
+  color: var(--danger);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.turn {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.question {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.answer {
+  margin: 0.5rem 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.cursor {
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.sources li {
+  padding: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+
+.quote {
+  color: var(--muted);
+  font-style: italic;
+}
+
+details.other {
+  margin-top: 0.5rem;
+}
+
+.ask {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ask .actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

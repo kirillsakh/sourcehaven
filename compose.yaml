@@ -1,0 +1,183 @@
+# Application image shared by migrate, api and worker. The image has no .env of its own and the
+# services do not share the project .env: each gets only the settings it needs, interpolated from
+# .env (see .env.example), so the internet-facing api and worker never hold the owner, maintenance
+# or Postgres credentials. An unset optional variable becomes an empty string, which Settings
+# ignores. Memory limits: migrate 256m, api 1g, worker 1g, web 512m, caddy 128m.
+x-app: &app
+  build: .
+  image: sourcehaven-app:latest
+  restart: unless-stopped
+
+# Non-secret settings common to every application command.
+x-app-settings: &app-settings
+  SOURCEHAVEN_ENVIRONMENT: ${SOURCEHAVEN_ENVIRONMENT:-}
+  SOURCEHAVEN_EMBEDDING_PROVIDER: ${SOURCEHAVEN_EMBEDDING_PROVIDER:-}
+  SOURCEHAVEN_TEI_URL: ${SOURCEHAVEN_TEI_URL:-}
+  SOURCEHAVEN_EMBEDDING_MODEL_ID: ${SOURCEHAVEN_EMBEDDING_MODEL_ID:-}
+  SOURCEHAVEN_EMBEDDING_MODEL_REVISION: ${SOURCEHAVEN_EMBEDDING_MODEL_REVISION:-}
+  SOURCEHAVEN_EMBEDDING_DIMENSIONS: ${SOURCEHAVEN_EMBEDDING_DIMENSIONS:-}
+  SOURCEHAVEN_EMBEDDING_QUERY_PREFIX: ${SOURCEHAVEN_EMBEDDING_QUERY_PREFIX:-}
+  SOURCEHAVEN_EMBEDDING_DOCUMENT_PREFIX: ${SOURCEHAVEN_EMBEDDING_DOCUMENT_PREFIX:-}
+  SOURCEHAVEN_EMBEDDING_MAX_INPUT_TOKENS: ${SOURCEHAVEN_EMBEDDING_MAX_INPUT_TOKENS:-}
+  SOURCEHAVEN_TOKENIZER_FILE: ${SOURCEHAVEN_TOKENIZER_FILE:-}
+  SOURCEHAVEN_CHUNK_TOKENS: ${SOURCEHAVEN_CHUNK_TOKENS:-}
+  SOURCEHAVEN_CHUNK_OVERLAP: ${SOURCEHAVEN_CHUNK_OVERLAP:-}
+  SOURCEHAVEN_EVIDENCE_THRESHOLD: ${SOURCEHAVEN_EVIDENCE_THRESHOLD:-}
+  SOURCEHAVEN_GENERATION_PROVIDER: ${SOURCEHAVEN_GENERATION_PROVIDER:-}
+  SOURCEHAVEN_OPENAI_MODEL: ${SOURCEHAVEN_OPENAI_MODEL:-}
+  SOURCEHAVEN_GENERATION_TEMPERATURE: ${SOURCEHAVEN_GENERATION_TEMPERATURE:-}
+  SOURCEHAVEN_MAX_OUTPUT_TOKENS: ${SOURCEHAVEN_MAX_OUTPUT_TOKENS:-}
+  SOURCEHAVEN_HUMAN_VERIFICATION: ${SOURCEHAVEN_HUMAN_VERIFICATION:-}
+  SOURCEHAVEN_COOKIE_SECURE: ${SOURCEHAVEN_COOKIE_SECURE:-}
+  SOURCEHAVEN_UPLOADS_DIR: ${SOURCEHAVEN_UPLOADS_DIR:-}
+  SOURCEHAVEN_MAX_UPLOAD_BYTES: ${SOURCEHAVEN_MAX_UPLOAD_BYTES:-}
+  SOURCEHAVEN_MAX_PAGES_PER_DOCUMENT: ${SOURCEHAVEN_MAX_PAGES_PER_DOCUMENT:-}
+  SOURCEHAVEN_MAX_DOCUMENTS_PER_SESSION: ${SOURCEHAVEN_MAX_DOCUMENTS_PER_SESSION:-}
+  SOURCEHAVEN_MAX_QUESTION_CHARS: ${SOURCEHAVEN_MAX_QUESTION_CHARS:-}
+  SOURCEHAVEN_MAX_DOCUMENTS_PER_QUESTION: ${SOURCEHAVEN_MAX_DOCUMENTS_PER_QUESTION:-}
+  SOURCEHAVEN_SESSION_IDLE_HOURS: ${SOURCEHAVEN_SESSION_IDLE_HOURS:-}
+  SOURCEHAVEN_SESSION_ABSOLUTE_DAYS: ${SOURCEHAVEN_SESSION_ABSOLUTE_DAYS:-}
+  # The app-role connection (row-level security applies). It is not a privileged credential.
+  SOURCEHAVEN_DATABASE_URL: ${SOURCEHAVEN_DATABASE_URL:?set SOURCEHAVEN_DATABASE_URL in .env}
+
+# Settings for the commands that serve requests or process documents.
+x-runtime-settings: &runtime-settings
+  <<: *app-settings
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    volumes:
+      # PostgreSQL 18 images keep the cluster in a versioned subdirectory of this mount point.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    restart: unless-stopped
+
+  embeddings:
+    # Hardware note (design spec section 8.2): checked 2026-11-19, the cpu-1.9 tag on GHCR
+    # publishes only linux/amd64 (no arm64 variant). On Apple Silicon it runs under emulation,
+    # so measured speed there is not used for acceptance; the platform is pinned so Docker
+    # selects the amd64 image instead of failing with "no matching manifest".
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    platform: linux/amd64
+    # --max-batch-tokens caps the warm-up and batch size (default 16384, request limit 8192 tokens).
+    # Measured on 2026-11-19 with the 3g limit: 8192 and 4096 are OOM-killed during warm-up, 2048
+    # starts. This limits one request to 2048 tokens, far above the 400-token chunks. Keep it equal to
+    # SOURCEHAVEN_EMBEDDING_MAX_INPUT_TOKENS (.env.example, Settings default).
+    command:
+      - --model-id
+      - ${SOURCEHAVEN_EMBEDDING_MODEL_ID:?set SOURCEHAVEN_EMBEDDING_MODEL_ID in .env}
+      - --revision
+      - ${SOURCEHAVEN_EMBEDDING_MODEL_REVISION:?set SOURCEHAVEN_EMBEDDING_MODEL_REVISION in .env}
+      - --max-batch-tokens
+      - "2048"
+    volumes:
+      - tei-models:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+    mem_limit: 3g
+    restart: unless-stopped
+
+  migrate:
+    <<: *app
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      <<: *app-settings
+      SOURCEHAVEN_ADMIN_DATABASE_URL: ${SOURCEHAVEN_ADMIN_DATABASE_URL:?set SOURCEHAVEN_ADMIN_DATABASE_URL in .env}
+      SOURCEHAVEN_APP_ROLE_PASSWORD: ${SOURCEHAVEN_APP_ROLE_PASSWORD:?set SOURCEHAVEN_APP_ROLE_PASSWORD in .env}
+      SOURCEHAVEN_MAINTENANCE_ROLE_PASSWORD: ${SOURCEHAVEN_MAINTENANCE_ROLE_PASSWORD:?set SOURCEHAVEN_MAINTENANCE_ROLE_PASSWORD in .env}
+    mem_limit: 256m
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: ["serve"]
+    environment: *runtime-settings
+    mem_limit: 1g
+    volumes:
+      - uploads:/var/lib/sourcehaven/uploads
+      - tei-models:/models:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      embeddings:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready', timeout=4)"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    environment: *runtime-settings
+    mem_limit: 1g
+    volumes:
+      - uploads:/var/lib/sourcehaven/uploads
+      - tei-models:/models:ro
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      embeddings:
+        condition: service_healthy
+
+  web:
+    # The Next.js standalone server. It receives no settings or secrets: the browser talks to the
+    # api through Caddy on the same origin, and the server never fetches private data.
+    build: ./frontend
+    image: sourcehaven-web:latest
+    mem_limit: 512m
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  caddy:
+    # Runs as root so it can bind ports 80/443 and own its volume; non-root is deferred to the
+    # production Compose file (M7).
+    image: caddy:2.11.9
+    mem_limit: 128m
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  tei-models:
+  uploads:
+  caddy-data:
