@@ -105,9 +105,15 @@ query method (`embed_queries`) so citing sentences do not cost one request each 
 2. **Uncited source:** the single passage sentence most similar to the question.
 3. **Assembly:** take picks in rank order while the total, including separators, fits in 300
    characters; then arrange the kept sentences in passage order. Adjacent sentences are joined by the
-   whitespace between them in the source (a dropped piece such as a bullet glyph is left out); non-adjacent ones by ` … `. A leading `…` is added when the first kept
+   whitespace between them in the source (a dropped bullet glyph or bare list number such as "2."
+   is left out; any other dropped text, such as a date line, makes them non-adjacent); non-adjacent ones by ` … `. A leading `…` is added when the first kept
    sentence does not start the passage, and a trailing `…` when the last does not end it.
-4. **Overlong sentence:** if the top pick alone exceeds 300 characters, it is cut at the last word
+4. **Headings** [A, added 2026-11-20 after the demo check]: a chosen sentence that looks like a
+   heading (at most four words, no sentence-ending punctuation, no comma or colon) says little on
+   its own; in the demo a framing sentence citing the job ad matched only "Must-haves". The
+   sentences under it, up to the next heading, therefore follow it in the ranking, ahead of
+   lower-ranked picks, and fill the quote while they fit.
+5. **Overlong sentence:** if the top pick alone exceeds 300 characters, it is cut at the last word
    boundary that fits, followed by `…`.
 
 **Fallback.** Any embedder error, or exceeding a time limit of **2 s** for the work after the answer

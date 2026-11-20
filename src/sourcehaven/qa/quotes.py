@@ -19,6 +19,9 @@ _ENDS_SENTENCE: re.Pattern[str] = re.compile(r"[.!?…][\"'\u201d\u2019)\]]*$")
 # PDF text breaks at every printed line. A line at least this share of the passage's longest
 # line is taken to be wrapped, so it continues onto the next line unless it ends a sentence.
 _WRAPPED_LINE_SHARE: float = 0.7
+_HEADING_MAX_WORDS: int = 4
+# A line holding nothing but a bullet glyph or a list number such as "1", "2." or "3)".
+_LIST_NUMBER: re.Pattern[str] = re.compile(r"\s*(?:[^\w\s]|[0-9]{1,2}[.)]?)?\s*")
 _LABELS_ONLY: re.Pattern[str] = re.compile(r"(?:\[S[0-9]+\][\s.,;:!?]*)+")
 _MARKDOWN_PREFIX: re.Pattern[str] = re.compile(r"^(?:#{1,6}|[-*+>]|[0-9]+[.)])\s+")
 _MARKDOWN_MARKS: re.Pattern[str] = re.compile(r"\*\*|__|`|(?<!\w)[*_]|[*_](?!\w)")
@@ -155,7 +158,8 @@ def assemble_quote(
     does not, and are shown in passage order. Neighbouring sentences keep the passage text
     between them; skipped text is marked with an ellipsis, including before the first and after
     the last kept sentence when the passage goes on. If the best sentence alone does not fit, it
-    is cut at a word boundary and ends with an ellipsis.
+    is cut at a word boundary and ends with an ellipsis. A chosen heading says little on its own,
+    so the sentences under it follow it, up to the next heading, before lower-ranked picks.
 
     Args:
         passage: The text the sentences were split from.
@@ -167,7 +171,7 @@ def assemble_quote(
         The quote, verbatim passage text apart from the ellipses.
     """
     kept: list[int] = []
-    for index in ranked:
+    for index in _with_heading_content(sentences, ranked):
         candidate: list[int] = sorted([*kept, index])
         if len(_render(passage, sentences, candidate)) > limit:
             break
@@ -175,6 +179,31 @@ def assemble_quote(
     if kept:
         return _render(passage, sentences, kept)
     return _cut(sentences, ranked[0], limit)
+
+
+def _with_heading_content(sentences: Sequence[Sentence], ranked: Sequence[int]) -> list[int]:
+    expanded: list[int] = []
+    for index in ranked:
+        if index in expanded:
+            continue
+        expanded.append(index)
+        if not _is_heading(sentences[index].text):
+            continue
+        following: int = index + 1
+        while following < len(sentences) and not _is_heading(sentences[following].text):
+            if following not in expanded:
+                expanded.append(following)
+            following += 1
+    return expanded
+
+
+def _is_heading(sentence: str) -> bool:
+    return (
+        len(sentence.split()) <= _HEADING_MAX_WORDS
+        and _ENDS_SENTENCE.search(sentence) is None
+        and "," not in sentence
+        and ":" not in sentence
+    )
 
 
 def _render(passage: str, sentences: Sequence[Sentence], kept: Sequence[int]) -> str:
@@ -195,13 +224,13 @@ def _render(passage: str, sentences: Sequence[Sentence], kept: Sequence[int]) ->
 
 
 def _between(passage: str, before: Sentence, after: Sentence) -> str:
-    """The whitespace between neighbouring sentences, without dropped bullet glyphs.
+    """The whitespace between neighbouring sentences, without dropped bullets or list numbers.
 
-    Dropped pieces with letters or digits (dates, numbers) are content, so their omission is
-    marked with an ellipsis instead.
+    Other dropped pieces with letters or digits (dates, amounts) are content, so their omission
+    is marked with an ellipsis instead.
     """
     skipped: str = passage[before.end : after.start]
-    if any(character.isalnum() for character in skipped):
+    if any(_LIST_NUMBER.fullmatch(line) is None for line in skipped.split("\n")):
         return _GAP
     return "".join(character for character in skipped if character.isspace()) or " "
 

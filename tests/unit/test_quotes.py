@@ -298,3 +298,38 @@ def test_skipped_dates_between_neighbouring_sentences_are_marked_with_an_ellipsi
     passage: str = "Senior Engineer\n2019 - 2023\nLed the migration."
     sentences: list[Sentence] = split_passage_sentences(passage)
     assert assemble_quote(passage, sentences, [0, 1]) == "Senior Engineer … Led the migration."
+    amount: str = "Cut latency by\n40%\nwith pgvector."
+    amount_sentences: list[Sentence] = split_sentences(amount)
+    assert assemble_quote(amount, amount_sentences, [0, 1]) == "Cut latency by … with pgvector."
+
+
+JOB_AD: str = (
+    "About us\nWe are a team of 12.\nMust-haves\n5+ years of Python.\nFastAPI or Django.\n"
+    "Nice-to-haves\nTerraform."
+)
+
+
+def test_a_chosen_heading_continues_with_the_sentences_under_it() -> None:
+    sentences: list[Sentence] = split_passage_sentences(JOB_AD)
+    assert assemble_quote(JOB_AD, sentences, [2]) == (
+        "…Must-haves\n5+ years of Python.\nFastAPI or Django. …"
+    )
+
+
+def test_a_heading_continues_only_while_the_quote_fits() -> None:
+    sentences: list[Sentence] = split_passage_sentences(JOB_AD)
+    assert assemble_quote(JOB_AD, sentences, [2], limit=36) == "…Must-haves\n5+ years of Python. …"
+
+
+def test_lines_with_commas_or_colons_are_not_headings() -> None:
+    passage: str = "Languages: Czech, English\nAI: OpenAI API\nEducation and certification"
+    sentences: list[Sentence] = split_passage_sentences(passage)
+    assert assemble_quote(passage, sentences, [0]) == "Languages: Czech, English …"
+
+
+def test_list_numbers_between_neighbouring_sentences_are_dropped_like_bullets() -> None:
+    passage: str = "Must-haves\n1\n5+ years of Python.\n2.\nFastAPI or Django."
+    sentences: list[Sentence] = split_passage_sentences(passage)
+    assert assemble_quote(passage, sentences, [0]) == (
+        "Must-haves\n\n5+ years of Python.\n\nFastAPI or Django."
+    )
