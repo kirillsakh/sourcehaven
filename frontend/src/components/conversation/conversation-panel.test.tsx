@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConversationPanel } from "@/components/conversation/conversation-panel";
 import type { DocumentInfo, SessionLimits } from "@/lib/api";
@@ -139,5 +140,94 @@ describe("ConversationPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(handlers.onAsk).toHaveBeenCalledExactlyOnceWith("First question?", ["a"]);
+  });
+});
+
+describe("ConversationPanel scrolling", () => {
+  let scrollHeight: number = 500;
+
+  function panel(turns: TurnViewModel[]): ReactElement {
+    return (
+      <ConversationPanel
+        limits={limits}
+        documents={[doc("a")]}
+        selected={new Set(["a"])}
+        turns={turns}
+        activeTurnKey={null}
+        activeLabel={null}
+        generating={false}
+        question=""
+        askError={null}
+        onQuestionChange={vi.fn()}
+        onAsk={vi.fn()}
+        onStop={vi.fn()}
+        onActivate={vi.fn()}
+        onShowEvidence={vi.fn()}
+        onFiles={vi.fn()}
+        onScopeClick={vi.fn()}
+      />
+    );
+  }
+
+  function withText(item: TurnViewModel, text: string): TurnViewModel {
+    return { ...item, status: "generating", errorMessage: null, text };
+  }
+
+  function turnsList(): HTMLElement {
+    const list: HTMLElement | null = screen.getByText("First question?").closest("[aria-live]");
+    if (list === null) {
+      throw new Error("The turns list is not rendered");
+    }
+    return list;
+  }
+
+  function scrollUserTo(list: HTMLElement, top: number): void {
+    list.scrollTop = top;
+    fireEvent.scroll(list);
+  }
+
+  beforeEach(() => {
+    scrollHeight = 500;
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: (): number => scrollHeight,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get: (): number => 100,
+    });
+  });
+
+  afterEach(() => {
+    Reflect.deleteProperty(HTMLElement.prototype, "scrollHeight");
+    Reflect.deleteProperty(HTMLElement.prototype, "clientHeight");
+  });
+
+  it("scrolls a newly asked question into view", () => {
+    const first: TurnViewModel = turn("t1", "First question?");
+    const { rerender } = render(panel([first]));
+    const list: HTMLElement = turnsList();
+    scrollUserTo(list, 0);
+
+    scrollHeight = 700;
+    rerender(panel([first, withText(turn("t2", "Second question?"), "")]));
+
+    expect(list.scrollTop).toBe(700);
+  });
+
+  it("follows the streamed answer until the reader scrolls up", () => {
+    const first: TurnViewModel = withText(turn("t1", "First question?"), "Three");
+    const { rerender } = render(panel([first]));
+    const list: HTMLElement = turnsList();
+    expect(list.scrollTop).toBe(500);
+
+    scrollHeight = 800;
+    rerender(panel([withText(first, "Three months")]));
+    expect(list.scrollTop).toBe(800);
+
+    scrollUserTo(list, 100);
+    scrollHeight = 900;
+    rerender(panel([withText(first, "Three months of notice")]));
+    expect(list.scrollTop).toBe(100);
   });
 });

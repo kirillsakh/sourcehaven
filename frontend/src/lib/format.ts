@@ -1,6 +1,6 @@
 export interface TextSegment {
   text: string;
-  /** Set when the segment is a citation marker that matches a known source label. */
+  /** Set when the segment is a citation marker such as `[S1]`; holds its label, `S1`. */
   label: string | null;
 }
 
@@ -9,19 +9,16 @@ export function formatPages(start: number, end: number): string {
 }
 
 /**
- * Split answer text into plain segments and citation markers such as `[S1]`.
+ * Split answer text into plain segments and every citation marker such as `[S1]`.
  *
- * Only markers whose label is in `knownLabels` become citation segments; any other marker stays
- * plain text. The text is never interpreted as markup.
+ * Whether a marker matches a source is left to the caller. The text is never interpreted as
+ * markup.
  */
-export function splitCitations(text: string, knownLabels: ReadonlySet<string>): TextSegment[] {
+export function splitCitations(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
   let plainStart = 0;
   for (const match of text.matchAll(/\[(S\d+)\]/g)) {
     const label = match[1];
-    if (!knownLabels.has(label)) {
-      continue;
-    }
     if (match.index > plainStart) {
       segments.push({ text: text.slice(plainStart, match.index), label: null });
     }

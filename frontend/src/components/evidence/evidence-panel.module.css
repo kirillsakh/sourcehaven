@@ -1,0 +1,118 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.for {
+  margin: -8px 0 0;
+  overflow: hidden;
+  color: var(--graphite);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state {
+  margin: 0;
+  color: var(--graphite);
+  overflow-wrap: anywhere;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.label {
+  align-self: start;
+  padding: 1px 0 0;
+  border: 0;
+  background: none;
+  color: var(--prussian);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.label:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.body {
+  min-width: 0;
+}
+
+.from {
+  margin: 0 0 3px;
+  color: var(--graphite);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.document {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.quote {
+  margin: 0;
+  font-family: var(--font-quote);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The highlighter sweeps left to right by growing background-size. Only an image can be sized,
+ * so the colour is drawn as a gradient with a hard stop: the lower half of each line, like a pen.
+ */
+.mark {
+  background-image: linear-gradient(transparent 50%, var(--highlighter) 50%);
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  transition: background-size 350ms ease;
+}
+
+.highlighted {
+  background-size: 100% 100%;
+}
+
+.uncited {
+  color: var(--graphite);
+  font-size: 13px;
+}
+
+.summary {
+  cursor: pointer;
+}
+
+.uncited .list {
+  margin-top: 4px;
+}
+
+.uncited .quote {
+  color: var(--graphite);
+  font-size: 15px;
+}

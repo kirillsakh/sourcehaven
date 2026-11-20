@@ -21,4 +21,5 @@
 .hint {
   margin: auto 0 0;
   color: var(--graphite);
+  overflow-wrap: anywhere;
 }

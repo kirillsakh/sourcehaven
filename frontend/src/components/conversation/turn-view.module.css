@@ -56,6 +56,7 @@
 
 .problem {
   color: var(--bad);
+  overflow-wrap: anywhere;
 }
 
 .note {

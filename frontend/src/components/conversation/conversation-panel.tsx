@@ -1,4 +1,4 @@
-import { useId, type ReactElement } from "react";
+import { useId, useLayoutEffect, useRef, type ReactElement, type RefObject } from "react";
 
 import { Composer } from "@/components/conversation/composer";
 import styles from "@/components/conversation/conversation-panel.module.css";
@@ -9,6 +9,8 @@ import { readySelectedIds } from "@/lib/selection";
 import type { TurnViewModel } from "@/lib/use-conversation";
 
 const DEFAULT_MAX_QUESTION_CHARS = 2000;
+// How close to the bottom (in pixels) the reader must be for the list to keep following new text.
+const FOLLOW_DISTANCE_PX = 48;
 
 function describeReadyDocuments(ready: readonly DocumentInfo[]): string {
   return ready.length === 1
@@ -56,6 +58,33 @@ export function ConversationPanel({
     (document: DocumentInfo) => document.state === "ready",
   );
   const readySelected: string[] = readySelectedIds(documents, selected);
+  const turnsList: RefObject<HTMLDivElement | null> = useRef<HTMLDivElement | null>(null);
+  const followLatest: RefObject<boolean> = useRef<boolean>(true);
+  const shownTurns: RefObject<number> = useRef<number>(0);
+
+  useLayoutEffect(() => {
+    const list: HTMLDivElement | null = turnsList.current;
+    if (list === null) {
+      return;
+    }
+    // A new question is always brought into view; a growing answer only while the reader is at
+    // the bottom, so scrolling up to reread is not undone by the next streamed token.
+    if (turns.length > shownTurns.current) {
+      followLatest.current = true;
+    }
+    shownTurns.current = turns.length;
+    if (followLatest.current) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [turns]);
+
+  function handleTurnsScroll(): void {
+    const list: HTMLDivElement | null = turnsList.current;
+    if (list !== null) {
+      const distance: number = list.scrollHeight - list.scrollTop - list.clientHeight;
+      followLatest.current = distance <= FOLLOW_DISTANCE_PX;
+    }
+  }
 
   return (
     <section className={styles.panel} aria-labelledby={headingId}>
@@ -63,7 +92,12 @@ export function ConversationPanel({
         Conversation
       </h2>
       {turns.length > 0 ? (
-        <div className={styles.turns} aria-live="polite">
+        <div
+          ref={turnsList}
+          className={styles.turns}
+          aria-live="polite"
+          onScroll={handleTurnsScroll}
+        >
           {turns.map((turn: TurnViewModel) => (
             <TurnView
               key={turn.key}

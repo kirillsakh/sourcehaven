@@ -10,16 +10,18 @@ describe("formatPages", () => {
 });
 
 describe("splitCitations", () => {
-  it("marks only known labels and keeps the rest as plain text", () => {
-    expect(splitCitations("A [S1] B [S9] C", new Set(["S1"]))).toEqual([
+  it("splits every marker from the plain text around it", () => {
+    expect(splitCitations("A [S1] B [S9] C [1]")).toEqual([
       { text: "A ", label: null },
       { text: "[S1]", label: "S1" },
-      { text: " B [S9] C", label: null },
+      { text: " B ", label: null },
+      { text: "[S9]", label: "S9" },
+      { text: " C [1]", label: null },
     ]);
   });
 
   it("returns no segments for empty text", () => {
-    expect(splitCitations("", new Set(["S1"]))).toEqual([]);
+    expect(splitCitations("")).toEqual([]);
   });
 });
 

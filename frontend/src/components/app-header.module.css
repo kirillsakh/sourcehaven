@@ -1,0 +1,25 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.wordmark {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.tail {
+  color: var(--prussian);
+}
+
+.retention {
+  margin: 0;
+  color: var(--graphite);
+  font-size: 13px;
+}

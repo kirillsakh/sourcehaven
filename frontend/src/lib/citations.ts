@@ -4,15 +4,6 @@ import { splitCitations } from "@/lib/format";
 
 const SERVER_LABEL = /^S\d+$/;
 
-/** Reports every marker as known so `splitCitations` returns all of them as citation segments. */
-class AnyLabel extends Set<string> {
-  override has(): boolean {
-    return true;
-  }
-}
-
-const ANY_LABEL: ReadonlySet<string> = new AnyLabel();
-
 /** Convert a server source label such as `S3` into the number readers see, such as `3`. */
 export function displayLabel(label: string): string {
   return SERVER_LABEL.test(label) ? label.slice(1) : label;
@@ -28,7 +19,7 @@ function markerNode(label: string, known: boolean): Text {
 }
 
 function splitTextNode(node: Text, knownLabels: ReadonlySet<string>): Text[] {
-  return splitCitations(node.value, ANY_LABEL).map((segment) =>
+  return splitCitations(node.value).map((segment) =>
     segment.label === null
       ? { type: "text", value: segment.text }
       : markerNode(segment.label, knownLabels.has(segment.label)),

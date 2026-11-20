@@ -92,12 +92,6 @@ export async function listDocuments(signal?: AbortSignal): Promise<DocumentInfo[
   return requestJson<DocumentInfo[]>("/api/documents", { signal });
 }
 
-export function uploadDocument(file: File): Promise<DocumentInfo> {
-  const form = new FormData();
-  form.append("file", file);
-  return requestJson<DocumentInfo>("/api/documents", { method: "POST", body: form });
-}
-
 /**
  * Upload a document and report byte progress.
  *

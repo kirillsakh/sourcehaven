@@ -1,0 +1,61 @@
+/* The page fills the viewport so each column scrolls on its own and the composer stays visible. */
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.columns {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.column {
+  min-width: 0;
+  min-height: 0;
+  padding: 18px 20px;
+  overflow-y: auto;
+}
+
+.column + .column {
+  border-left: 1px solid var(--rule);
+}
+
+.documents {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.conversation {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.evidence {
+  display: none;
+  background: var(--panel);
+}
+
+.alert {
+  margin: 0;
+  color: var(--bad);
+  overflow-wrap: anywhere;
+}
+
+.failed {
+  padding: 24px 20px;
+}
+
+@media (min-width: 1280px) {
+  .columns {
+    grid-template-columns: 260px minmax(0, 1fr) 340px;
+  }
+
+  .evidence {
+    display: block;
+  }
+}
