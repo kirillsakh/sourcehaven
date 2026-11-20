@@ -5,7 +5,7 @@ export interface TextSegment {
 }
 
 export function formatPages(start: number, end: number): string {
-  return start === end ? `p. ${start}` : `pp. ${start}–${end}`;
+  return start === end ? `page ${start}` : `pages ${start}–${end}`;
 }
 
 /**

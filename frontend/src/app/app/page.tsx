@@ -17,28 +17,11 @@ import {
   type TurnEvent,
 } from "@/lib/api";
 import { newRequestId } from "@/lib/format";
+import { describeError } from "@/lib/messages";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_PARALLEL_UPLOADS = 3;
 const CONVERSATION_STORAGE_KEY = "sourcehaven.conversation";
-
-const ERROR_TEXT: Record<string, string> = {
-  session_required: "Your session has expired. Reload the page to start a new one.",
-  too_large: "The file is larger than the upload limit.",
-  unsupported_type: "Only PDF files are supported.",
-  empty_file: "The file is empty.",
-  session_document_limit: "You have reached the document limit for this session.",
-  document_not_ready: "A selected document is not ready yet.",
-  turn_in_progress: "Another answer is still being generated. Wait for it to finish.",
-  duplicate_request: "This question was already sent.",
-};
-
-function describeError(error: unknown): string {
-  if (error instanceof ApiError) {
-    return ERROR_TEXT[error.code] ?? (error.message === error.code ? error.code : error.message);
-  }
-  return "The request failed. Check your connection and try again.";
-}
 
 function readStoredConversation(): string | null {
   try {

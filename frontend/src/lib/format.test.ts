@@ -4,8 +4,8 @@ import { formatPages, newRequestId, splitCitations } from "@/lib/format";
 
 describe("formatPages", () => {
   it("formats a single page and a range", () => {
-    expect(formatPages(1, 1)).toBe("p. 1");
-    expect(formatPages(3, 5)).toBe("pp. 3–5");
+    expect(formatPages(4, 4)).toBe("page 4");
+    expect(formatPages(9, 10)).toBe("pages 9–10");
   });
 });
 
