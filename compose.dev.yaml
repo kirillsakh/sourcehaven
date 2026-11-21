@@ -24,6 +24,11 @@ services:
   worker:
     environment: *dev-app-environment
 
+  embeddings:
+    ports:
+      # for the benchmark, `uv run python -m evals.benchmark run`
+      - "127.0.0.1:8081:80"
+
   caddy:
     ports:
       - "127.0.0.1:8080:8080"

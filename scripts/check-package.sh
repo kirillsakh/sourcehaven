@@ -11,7 +11,7 @@ REQUIRED_PATHS=(
     "sourcehaven/prompts/answer_system.txt"
 )
 SDIST_SOURCE_PREFIX="src/"
-FORBIDDEN_PATTERN='(^|/)(tests|docs|\.claude|frontend|\.venv|__pycache__|uploads)/|(^|/)\.env($|\.)|\.(pyc|db|sqlite)$'
+FORBIDDEN_PATTERN='(^|/)(tests|docs|evals|\.claude|frontend|\.venv|__pycache__|uploads)/|(^|/)\.env($|\.)|\.(pyc|db|sqlite)$'
 
 list_members() {
     python3 -I -c '
