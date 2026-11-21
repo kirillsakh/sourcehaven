@@ -1,6 +1,6 @@
 # Evaluation corpus and retrieval benchmark — design
 
-- **Status:** draft, awaiting the owner's approval
+- **Status:** approved by the owner on 2026-11-21
 - **Date:** 2026-11-20
 - **Parent:** [`2026-11-19-sourcehaven-design.md`](2026-11-19-sourcehaven-design.md) §8.2, §8.3, §8.5,
   §15 (M2); M2 piece 2 of 5 (the order is in

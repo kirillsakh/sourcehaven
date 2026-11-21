@@ -612,11 +612,11 @@ All three are supported by TEI CPU (`ghcr.io/huggingface/text-embeddings-inferen
 
 ### 8.2 Procedure
 
-- **Corpus:** `evals/corpus/`, versioned. About 5 openly licensed English documents, each with its licence and source recorded.
+- **Corpus:** `evals/corpus/`, versioned. Six openly licensed English documents (one per layout below, plus an earlier edition of the report that conflicts with it), each with its licence and source recorded; fetched by URL and verified by hash, not committed.
   - **Layouts covered:** a contract-like legal text, a two-column paper, a manual with tables, a report and a long book excerpt.
   - **Candidate sources:** Wikipedia (CC BY-SA), public-domain books, openly licensed papers and official publications whose licence allows redistribution.
-- **Questions:** about 20 English questions, each with its gold page range or passage. They include unanswerable questions (at least 3) and two documents that conflict.
-- **Harness:** `evals/embedding_benchmark.py`, run with `uv run`. It ingests the corpus with each model through the real pipeline into a scratch database and measures:
+- **Questions:** about 40 English questions, each with gold page and exact supporting text. They include about 10 unanswerable questions and two documents that conflict (amended 2026-11-21, owner decision).
+- **Harness:** `evals/benchmark.py`, run with `uv run python -m evals.benchmark`. It calls the app's own parsing, splitting, embedding and evidence-selection code and ranks passages in memory, without a database (amended 2026-11-21, owner decision; corpus, metrics and approach in `2026-11-20-corpus-and-harness-design.md`). It measures:
   - Recall@8 and MRR@10;
   - p50/p95 query-embedding latency;
   - ingestion chunks per second;
