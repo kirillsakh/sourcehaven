@@ -4,11 +4,13 @@ from evals.normalize import normalize
 from evals.questions import GoldSpan, Question, QuestionKind
 from evals.scoring import (
     Distribution,
+    Metrics,
     Passage,
     QuestionOutcome,
     Ranked,
     SpanLocation,
     SpanOutcome,
+    ThresholdRow,
     choose_passages,
     contains,
     covering_rank,
@@ -17,7 +19,7 @@ from evals.scoring import (
     summarize,
     threshold_table,
 )
-from sourcehaven.domain.models import ExtractedPage, PageSpan
+from sourcehaven.domain.models import Evidence, ExtractedPage, PageSpan
 
 
 def passage(
@@ -104,20 +106,25 @@ def unanswerable_outcome(
 
 
 def test_a_passage_from_another_document_never_contains_the_span() -> None:
-    span = GoldSpan(document="report", page=13, text="Import dependency was 40%.")
+    span: GoldSpan = GoldSpan(document="report", page=13, text="Import dependency was 40%.")
     assert contains(passage("report", "… Import dependency was 40%. …"), span)
     assert not contains(passage("report-2024", "… Import dependency was 40%. …"), span)
 
 
 def test_contains_compares_normalised_text() -> None:
-    span = span_in("report", "Cats — dogs, “quoted”")
+    span: GoldSpan = span_in("report", "Cats — dogs, “quoted”")
     assert contains(passage("report", 'all the CATS-\ndogs, "quoted" here'), span)
     assert not contains(passage("report", "cats dogs"), span)
 
 
 def test_covering_rank_needs_every_span() -> None:
-    a, b = span_in("report", "alpha"), span_in("report-2024", "beta")
-    ranking = [passage("report", "alpha"), passage("x", "noise"), passage("report-2024", "beta")]
+    a: GoldSpan = span_in("report", "alpha")
+    b: GoldSpan = span_in("report-2024", "beta")
+    ranking: list[Passage] = [
+        passage("report", "alpha"),
+        passage("x", "noise"),
+        passage("report-2024", "beta"),
+    ]
     assert covering_rank(ranking, [a]) == 1 and covering_rank(ranking, [a, b]) == 3
     assert covering_rank(ranking[:2], [a, b]) is None
 
@@ -132,7 +139,7 @@ def test_passage_evidence_ids_are_stable_per_document_and_ordinal() -> None:
     other_ordinal: Passage = passage("report", "alpha", ordinal=3)
     other_document: Passage = passage("report-2024", "alpha", ordinal=2)
 
-    evidence = first.evidence(0.75)
+    evidence: Evidence = first.evidence(0.75)
     assert evidence.chunk_id == same.evidence(0.1).chunk_id
     assert evidence.chunk_id != other_ordinal.evidence(0.75).chunk_id
     assert evidence.document_id == other_ordinal.evidence(0.75).document_id
@@ -143,10 +150,10 @@ def test_passage_evidence_ids_are_stable_per_document_and_ordinal() -> None:
 
 
 def test_choose_passages_applies_the_threshold_and_document_cap() -> None:
-    ranked = [Ranked(passage("a", f"t{i}", ordinal=i), 0.9 - i / 100) for i in range(6)] + [
-        Ranked(passage("b", "u"), 0.5)
-    ]
-    chosen = choose_passages(ranked, threshold=0.0)
+    ranked: list[Ranked] = [
+        Ranked(passage("a", f"t{i}", ordinal=i), 0.9 - i / 100) for i in range(6)
+    ] + [Ranked(passage("b", "u"), 0.5)]
+    chosen: list[Ranked] = choose_passages(ranked, threshold=0.0)
     assert (
         sum(r.passage.document == "a" for r in chosen) == 4 and chosen[-1].passage.document == "b"
     )
@@ -154,14 +161,14 @@ def test_choose_passages_applies_the_threshold_and_document_cap() -> None:
 
 
 def test_choose_passages_returns_the_same_ranked_objects_most_similar_first() -> None:
-    low = Ranked(passage("a", "low", ordinal=0), 0.2)
-    high = Ranked(passage("a", "high", ordinal=1), 0.8)
-    chosen = choose_passages([low, high], threshold=0.1)
+    low: Ranked = Ranked(passage("a", "low", ordinal=0), 0.2)
+    high: Ranked = Ranked(passage("a", "high", ordinal=1), 0.8)
+    chosen: list[Ranked] = choose_passages([low, high], threshold=0.1)
     assert chosen == [high, low] and chosen[0] is high and chosen[1] is low
 
 
 def test_locate_span() -> None:
-    pages = [
+    pages: list[ExtractedPage] = [
         ExtractedPage(1, "Intro text.", True),
         ExtractedPage(2, "The answer is 42.", True),
         ExtractedPage(3, "Starts here and", True),
@@ -180,16 +187,16 @@ def test_distribution_of_values() -> None:
     assert distribution([0.4]) == Distribution(
         count=1, minimum=0.4, p10=0.4, median=0.4, p90=0.4, maximum=0.4
     )
-    spread = distribution([float(value) for value in range(1, 12)])
+    spread: Distribution = distribution([float(value) for value in range(1, 12)])
     assert spread.count == 11 and spread.minimum == 1.0 and spread.maximum == 11.0
     assert spread.median == 6.0
     assert spread.p10 == pytest.approx(2.0) and spread.p90 == pytest.approx(10.0)
 
 
 def test_summarize_on_hand_made_outcomes() -> None:
-    hit_span = span_in("report", "alpha", page=2)
-    missed_span = span_in("report", "beta", page=3)
-    outcomes = [
+    hit_span: GoldSpan = span_in("report", "alpha", page=2)
+    missed_span: GoldSpan = span_in("report", "beta", page=3)
+    outcomes: list[QuestionOutcome] = [
         answered_outcome(
             rank=2,
             top=0.8,
@@ -211,7 +218,7 @@ def test_summarize_on_hand_made_outcomes() -> None:
         unanswerable_outcome(candidates=(Ranked(passage("a", "x"), 0.3),), top_similarity=0.3),
         unanswerable_outcome(candidates=(Ranked(passage("a", "y"), 0.6),), top_similarity=0.6),
     ]
-    metrics = summarize(outcomes)
+    metrics: Metrics = summarize(outcomes)
     assert metrics.answered_questions == 2 and metrics.unanswerable_questions == 2
     assert metrics.recall_at_8 == 0.5 and metrics.mrr_at_10 == 0.25
     assert metrics.extraction_coverage == 0.5 and metrics.split_spans == 0
@@ -226,7 +233,7 @@ def test_summarize_on_hand_made_outcomes() -> None:
 
 
 def test_conflict_questions_count_as_answered_and_spans_individually() -> None:
-    spans = (
+    spans: tuple[SpanOutcome, ...] = (
         span_outcome(span_in("report", "alpha"), split=True, quote_coverage=0.9, page_correct=True),
         span_outcome(
             span_in("report-2024", "beta"),
@@ -235,7 +242,7 @@ def test_conflict_questions_count_as_answered_and_spans_individually() -> None:
             page_correct=False,
         ),
     )
-    metrics = summarize([answered_outcome(rank=1, kind="conflict", spans=spans)])
+    metrics: Metrics = summarize([answered_outcome(rank=1, kind="conflict", spans=spans)])
     assert metrics.answered_questions == 1 and metrics.recall_at_8 == 1.0
     assert metrics.split_spans == 1
     assert metrics.extraction_coverage == 1.0
@@ -245,7 +252,7 @@ def test_conflict_questions_count_as_answered_and_spans_individually() -> None:
 
 
 def test_rank_beyond_ten_scores_zero_mrr() -> None:
-    metrics = summarize(
+    metrics: Metrics = summarize(
         [
             answered_outcome(rank=10, hit=False),
             answered_outcome(rank=11, hit=False),
@@ -257,7 +264,7 @@ def test_rank_beyond_ten_scores_zero_mrr() -> None:
 
 
 def test_summarize_without_answered_questions_or_selected_spans() -> None:
-    metrics = summarize([unanswerable_outcome(candidates=(), top_similarity=None)])
+    metrics: Metrics = summarize([unanswerable_outcome(candidates=(), top_similarity=None)])
     assert metrics.answered_questions == 0 and metrics.unanswerable_questions == 1
     assert metrics.recall_at_8 == 0.0 and metrics.mrr_at_10 == 0.0
     assert metrics.extraction_coverage == 0.0 and metrics.split_spans == 0
@@ -269,22 +276,22 @@ def test_summarize_without_answered_questions_or_selected_spans() -> None:
 
 
 def test_question_without_candidates_or_with_negative_similarity() -> None:
-    outcome = unanswerable_outcome(candidates=(), top_similarity=None)
-    negative = unanswerable_outcome(
+    outcome: QuestionOutcome = unanswerable_outcome(candidates=(), top_similarity=None)
+    negative: QuestionOutcome = unanswerable_outcome(
         candidates=(Ranked(passage("a", "x"), -0.2),), top_similarity=-0.2
     )
-    answered_hit = answered_outcome(
+    answered_hit: QuestionOutcome = answered_outcome(
         rank=1, spans=(span_outcome(span_in("report", "alpha")),), top=0.9
     )
-    metrics = summarize([answered_hit, outcome, negative])
+    metrics: Metrics = summarize([answered_hit, outcome, negative])
     assert metrics.unanswerable_top.count == 1 and metrics.unanswerable_top.minimum == -0.2
     assert metrics.thresholds[0].refused == 1.0  # both refused at threshold 0.00
 
 
 def test_threshold_table_rows() -> None:
-    gold_a = span_in("report", "alpha")
-    gold_b = span_in("report", "beta")
-    outcomes = [
+    gold_a: GoldSpan = span_in("report", "alpha")
+    gold_b: GoldSpan = span_in("report", "beta")
+    outcomes: list[QuestionOutcome] = [
         answered_outcome(
             rank=1,
             spans=(span_outcome(gold_a),),
@@ -305,7 +312,7 @@ def test_threshold_table_rows() -> None:
             candidates=(Ranked(passage("report", "q", ordinal=4), 0.2),), top_similarity=0.2
         ),
     ]
-    rows = threshold_table(outcomes)
+    rows: list[ThresholdRow] = threshold_table(outcomes)
     assert len(rows) == 101 and rows[0].threshold == 0.0 and rows[-1].threshold == 1.0
     assert [row.threshold for row in rows[:3]] == [0.0, 0.01, 0.02]
     assert (rows[0].recall_at_8, rows[0].refused) == (1.0, 0.0)
@@ -316,16 +323,16 @@ def test_threshold_table_rows() -> None:
 
 
 def test_threshold_table_recall_needs_every_gold_span_among_the_chosen() -> None:
-    gold = (span_in("report", "alpha"), span_in("report-2024", "beta"))
-    candidates = (
+    gold: tuple[GoldSpan, ...] = (span_in("report", "alpha"), span_in("report-2024", "beta"))
+    candidates: tuple[Ranked, ...] = (
         Ranked(passage("report", "alpha", ordinal=0), 0.9),
         Ranked(passage("report-2024", "beta", ordinal=0), 0.5),
     )
-    outcome = answered_outcome(
+    outcome: QuestionOutcome = answered_outcome(
         rank=2,
         kind="conflict",
         spans=tuple(span_outcome(span) for span in gold),
         candidates=candidates,
     )
-    rows = threshold_table([outcome])
+    rows: list[ThresholdRow] = threshold_table([outcome])
     assert rows[50].recall_at_8 == 1.0 and rows[51].recall_at_8 == 0.0
