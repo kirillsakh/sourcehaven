@@ -176,7 +176,7 @@ numbers are physical.
 
 | Id | Document | Licence | Pages | Size | Why this one |
 |---|---|---|---|---|---|
-| `contract` | UK Government *Model Services Contract — Terms and Conditions* (MHCLG edition, TCMSC 11.25) | OGL v3.0 (stated in the PDF, p5) | 84 | 0.6 MB | Numbered clauses and inline defined terms. Clean text with a three-line header on every page. Drafting placeholders such as "[£10 million]" |
+| `contract` | UK Government *Model Services Contract — Core Terms* (MHCLG edition, TCMSC 11.25; file name "Terms and Conditions") | OGL v3.0 (stated in the PDF, p5) | 84 | 0.6 MB | Numbered clauses and inline defined terms. Clean text with a three-line header on every page. Drafting placeholders such as "[£10 million]" |
 | `paper` | Devlin et al., *BERT* (NAACL 2019), ACL Anthology N19-1423 | CC BY 4.0 (ACL Anthology, 2016 onwards) | 16 | 0.8 MB | Two columns and results tables. pypdf keeps the ﬁ/ﬂ ligature characters and splits hyphenated words at line ends. Page labels restart in the appendix |
 | `manual` | NIST SP 811 (2008), *Guide for the Use of the International System of Units* | US government work | 90 | 2.0 MB | Many tables. pypdf flattens exponents ("10^24" becomes "1024") and breaks the dot-leader conversion tables. Printed page = physical − 12 |
 | `report` | DESNZ, *UK Energy in Brief 2025* | OGL v3.0 (gov.uk publication page) | 54 | 2.0 MB | Short sections, each with a small table and a chart. pypdf splits some words ("Perc entage") |
@@ -218,8 +218,8 @@ deliberately, bumping the corpus version, or to point it at an archived copy [P]
 - BERT is famous, so a language model may answer questions about it from memory. That does not
   affect this retrieval benchmark, but it matters for the later answer-quality run, which should
   weigh BERT questions accordingly.
-- The OGL statement for the two Energy in Brief PDFs comes from the gov.uk publication page ("except
-  where otherwise stated"); the PDFs themselves say nothing.
+- The two Energy in Brief PDFs state OGL v3.0 on their last page (p54), as does the gov.uk
+  publication page (corrected 2026-11-21 after fetching).
 - OpenStax figures carry their own CC BY credits. Figures are not used.
 
 **Backups**, also downloaded and verified:
