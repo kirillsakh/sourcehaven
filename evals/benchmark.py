@@ -18,12 +18,13 @@ from evals.corpus import (
     document_path,
     extract_document,
     fetch_corpus,
+    file_sha256,
     load_manifest,
     verify_file,
 )
 from evals.embedding import CachedEmbedder, VectorCache, benchmark_config, ensure_tokenizer
 from evals.pipeline import BenchmarkResult, run_benchmark
-from evals.questions import Question, QuestionFileError, file_sha256, load_questions
+from evals.questions import Question, QuestionFileError, load_questions
 from evals.report import (
     RunContext,
     count_locations,

@@ -116,18 +116,18 @@ def document_path(files_dir: Path, document: CorpusDocument) -> Path:
     return files_dir / f"{document.id}.pdf"
 
 
+def file_sha256(path: Path) -> str:
+    """Hex SHA-256 digest of the file's bytes."""
+    with path.open("rb") as file:
+        return hashlib.file_digest(file, "sha256").hexdigest()
+
+
 def verify_file(path: Path, document: CorpusDocument) -> bool:
     """Whether the file exists and matches the pinned size and SHA-256 of the document."""
     try:
-        if path.stat().st_size != document.size_bytes:
-            return False
-        digest: Any = hashlib.sha256()
-        with path.open("rb") as file:
-            while chunk := file.read(_CHUNK_BYTES):
-                digest.update(chunk)
+        return path.stat().st_size == document.size_bytes and file_sha256(path) == document.sha256
     except OSError:
         return False
-    return bool(digest.hexdigest() == document.sha256)
 
 
 async def fetch_corpus(
@@ -195,7 +195,7 @@ def extract_document(
 
 async def _download(document: CorpusDocument, target: Path, client: httpx.AsyncClient) -> None:
     part: Path = target.with_name(f".{document.id}.part")
-    digest: Any = hashlib.sha256()
+    digest: hashlib._Hash = hashlib.sha256()
     written: int = 0
     try:
         async with client.stream("GET", document.url, follow_redirects=True) as response:

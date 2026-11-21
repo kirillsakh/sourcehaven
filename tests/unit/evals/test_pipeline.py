@@ -9,7 +9,7 @@ from evals.corpus import CorpusDocument, Manifest
 from evals.embedding import CachedEmbedder, VectorCache
 from evals.pipeline import BenchmarkResult, DocumentPassages, build_passages, run_benchmark
 from evals.questions import GoldSpan, Question, QuestionKind
-from evals.scoring import Metrics, QuestionOutcome, summarize
+from evals.scoring import Metrics, QuestionOutcome, SpanOutcome, summarize
 from sourcehaven.domain.models import PageSpan
 from sourcehaven.embeddings.hashing import HashEmbedder, WhitespaceTokenCounter
 from sourcehaven.ingestion.pdf import PdfAdapter
@@ -140,6 +140,7 @@ async def test_end_to_end_on_the_synthetic_fixtures(
     warranty: QuestionOutcome = outcome(result, "warranty")
     assert warranty.hit
     assert warranty.covering_rank == 1
+    span: SpanOutcome
     (span,) = warranty.spans
     assert span.location == "on_page"
     assert span.page_correct
@@ -249,6 +250,7 @@ async def test_split_and_missing_spans_are_told_apart(
     )
     result: BenchmarkResult = await run(manifest, probes, files_dir, cache, chunk_tokens=5)
 
+    split: SpanOutcome
     (split,) = outcome(result, "split").spans
     assert (split.location, split.split, split.best_rank) == ("on_page", True, None)
     assert not split.selected
@@ -256,6 +258,7 @@ async def test_split_and_missing_spans_are_told_apart(
     assert split.quote is None
     assert split.quote_coverage is None
     assert not outcome(result, "split").hit
+    missing: SpanOutcome
     (missing,) = outcome(result, "missing").spans
     assert (missing.location, missing.split, missing.best_rank) == ("missing", False, None)
     assert outcome(result, "missing").covering_rank is None

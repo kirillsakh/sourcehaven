@@ -1,4 +1,3 @@
-import hashlib
 import json
 from pathlib import Path
 
@@ -10,7 +9,6 @@ from evals.questions import (
     GoldSpan,
     Question,
     QuestionFileError,
-    file_sha256,
     load_questions,
 )
 from sourcehaven.domain.models import PageSpan
@@ -103,6 +101,9 @@ def write_questions(tmp_path: Path, *questions: dict[str, object]) -> Path:
 def test_loads_each_kind(tmp_path: Path) -> None:
     path: Path = write_questions(tmp_path, ANSWERABLE, UNANSWERABLE, CONFLICT)
 
+    answerable: Question
+    unanswerable: Question
+    conflict: Question
     answerable, unanswerable, conflict = load_questions(path, MANIFEST)
 
     assert answerable == Question(
@@ -121,6 +122,7 @@ def test_loads_each_kind(tmp_path: Path) -> None:
 
 
 def test_empty_selection_means_documents_selected_by_default(tmp_path: Path) -> None:
+    question: Question
     (question,) = load_questions(write_questions(tmp_path, ANSWERABLE), MANIFEST)
 
     assert question.documents == ("contract", "report")  # report-2024 is not selected by default
@@ -129,6 +131,7 @@ def test_empty_selection_means_documents_selected_by_default(tmp_path: Path) -> 
 def test_omitted_documents_means_default_selection(tmp_path: Path) -> None:
     case: dict[str, object] = {k: v for k, v in UNANSWERABLE.items() if k != "documents"}
 
+    question: Question
     (question,) = load_questions(write_questions(tmp_path, case), MANIFEST)
 
     assert question.documents == ("contract", "report")
@@ -137,6 +140,7 @@ def test_omitted_documents_means_default_selection(tmp_path: Path) -> None:
 def test_listed_documents_keep_their_order(tmp_path: Path) -> None:
     case: dict[str, object] = UNANSWERABLE | {"documents": ["report-2024", "contract"]}
 
+    question: Question
     (question,) = load_questions(write_questions(tmp_path, case), MANIFEST)
 
     assert question.documents == ("report-2024", "contract")
@@ -149,6 +153,7 @@ def test_accepts_the_edges_of_the_page_range_and_the_span_limit(tmp_path: Path) 
         {"document": "report", "page": 50, "text": "Last page."},
     ]
 
+    question: Question
     (question,) = load_questions(write_questions(tmp_path, ANSWERABLE | {"gold": gold}), MANIFEST)
 
     assert [span.page for span in question.gold] == [10, 20, 50]
@@ -253,10 +258,3 @@ def test_reports_every_problem_at_once(tmp_path: Path) -> None:
     assert "q-1" in message
     assert "q-2" in message
     assert "q-3" not in message
-
-
-def test_file_sha256_hashes_the_bytes(tmp_path: Path) -> None:
-    path: Path = tmp_path / "questions.toml"
-    path.write_bytes(b"abc")
-
-    assert file_sha256(path) == hashlib.sha256(b"abc").hexdigest()

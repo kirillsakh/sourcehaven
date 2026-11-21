@@ -13,10 +13,11 @@ from evals.corpus import (
     document_path,
     extract_document,
     fetch_corpus,
+    file_sha256,
     load_manifest,
     verify_file,
 )
-from sourcehaven.domain.models import PageSpan
+from sourcehaven.domain.models import ExtractedSource, PageSpan
 from sourcehaven.ingestion.pdf import PdfAdapter
 from tests.support.fixtures import fixture
 
@@ -155,6 +156,13 @@ def test_document_path_is_the_id_with_a_pdf_suffix(tmp_path: Path) -> None:
     assert document_path(tmp_path, make_document("book")) == tmp_path / "book.pdf"
 
 
+def test_file_sha256_hashes_the_bytes(tmp_path: Path) -> None:
+    path: Path = tmp_path / "file.bin"
+    path.write_bytes(b"abc")
+
+    assert file_sha256(path) == hashlib.sha256(b"abc").hexdigest()
+
+
 def test_verify_file_checks_size_and_hash(tmp_path: Path) -> None:
     document: CorpusDocument = make_document()
     target: Path = document_path(tmp_path, document)
@@ -246,7 +254,9 @@ async def test_fetch_reports_http_errors_by_document_id(tmp_path: Path) -> None:
 def test_extract_keeps_only_the_excerpt_with_physical_numbers() -> None:
     document: CorpusDocument = make_document(page_range=PageSpan(start=3, end=5))
 
-    source = extract_document(document, fixture("multipage_en.pdf"), PdfAdapter(), max_pages=300)
+    source: ExtractedSource = extract_document(
+        document, fixture("multipage_en.pdf"), PdfAdapter(), max_pages=300
+    )
 
     assert [page.page for page in source.pages] == [3, 4, 5]
     assert source.page_count == 6 and source.parser_name == "pypdf"
@@ -255,6 +265,8 @@ def test_extract_keeps_only_the_excerpt_with_physical_numbers() -> None:
 def test_extract_keeps_every_page_without_a_range() -> None:
     document: CorpusDocument = make_document()
 
-    source = extract_document(document, fixture("multipage_en.pdf"), PdfAdapter(), max_pages=300)
+    source: ExtractedSource = extract_document(
+        document, fixture("multipage_en.pdf"), PdfAdapter(), max_pages=300
+    )
 
     assert [page.page for page in source.pages] == [1, 2, 3, 4, 5, 6]

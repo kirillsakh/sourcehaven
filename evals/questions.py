@@ -1,4 +1,3 @@
-import hashlib
 import re
 import tomllib
 from dataclasses import dataclass
@@ -18,7 +17,6 @@ _QUESTION_FIELDS: frozenset[str] = frozenset(
     {"id", "kind", "text", "documents", "reference_answer", "gold"}
 )
 _GOLD_FIELDS: frozenset[str] = frozenset({"document", "page", "text"})
-_CHUNK_BYTES: int = 1 << 16
 
 
 class QuestionFileError(Exception):
@@ -101,15 +99,6 @@ def load_questions(path: Path, manifest: Manifest) -> tuple[Question, ...]:
     if problems:
         raise QuestionFileError(f"Invalid question file {path}:\n" + "\n".join(problems))
     return tuple(questions)
-
-
-def file_sha256(path: Path) -> str:
-    """Hex SHA-256 digest of the file's bytes."""
-    digest: Any = hashlib.sha256()
-    with path.open("rb") as file:
-        while chunk := file.read(_CHUNK_BYTES):
-            digest.update(chunk)
-    return str(digest.hexdigest())
 
 
 def _parse_question(
