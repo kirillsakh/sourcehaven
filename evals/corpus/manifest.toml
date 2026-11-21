@@ -1,0 +1,77 @@
+# Pinned source documents of the retrieval benchmark (design: docs/superpowers/specs/2026-11-20-corpus-and-harness-design.md, section 3.4).
+# The PDFs are downloaded by `uv run python -m evals.benchmark fetch` and verified by size and SHA-256.
+version = 1
+
+[[document]]
+id = "contract"
+title = "Model Services Contract: Core Terms"
+author = "Ministry of Housing, Communities and Local Government (issued by the Cabinet Office)"
+url = "https://assets.publishing.service.gov.uk/media/6953ae6897f1c5e3c92a8322/MHCLG__Model_Services_Contract_Terms_and_Conditions.pdf"
+sha256 = "00f37dbba296eb4f3db214f24cc7f8a478ebe48ab494669e0c494e98424c1f3d"
+size_bytes = 649932
+page_count = 84
+licence = "Open Government Licence v3.0"
+licence_url = "https://www.gov.uk/government/publications/model-services-contract-terms"
+layout = "contract"
+
+[[document]]
+id = "paper"
+title = "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
+author = "Jacob Devlin, Ming-Wei Chang, Kenton Lee and Kristina Toutanova"
+url = "https://aclanthology.org/N19-1423.pdf"
+sha256 = "987545ffb087f1ece898142c403a516baeabeb70ce19089397fac6f7db12c3d4"
+size_bytes = 786279
+page_count = 16
+licence = "Creative Commons Attribution 4.0 International"
+licence_url = "https://aclanthology.org/faq/copyright/"
+layout = "paper"
+
+[[document]]
+id = "manual"
+title = "Guide for the Use of the International System of Units (SI)"
+author = "Ambler Thompson and Barry N. Taylor"
+url = "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication811e2008.pdf"
+sha256 = "788dd8f0bcb0ec06e40c300690266742532a7e760a93be57764b77ed0ef3482f"
+size_bytes = 2027518
+page_count = 90
+licence = "Public domain (U.S. Government work)"
+licence_url = "https://www.nist.gov/open/copyright-fair-use-and-licensing-statements-srd-data-software-and-technical-series-publications"
+layout = "manual"
+
+[[document]]
+id = "report"
+title = "UK Energy in Brief 2025"
+author = "Department for Energy Security and Net Zero"
+url = "https://assets.publishing.service.gov.uk/media/688890c3a11f859994409132/UK_Energy_in_Brief_2025.pdf"
+sha256 = "83fb8966db7a5e4e8e4e54fbe035e8bd03aebf64ec3166658e7ddaa69cd6ebe5"
+size_bytes = 2033286
+page_count = 54
+licence = "Open Government Licence v3.0"
+licence_url = "https://www.gov.uk/government/statistics/uk-energy-in-brief-2025"
+layout = "report"
+
+[[document]]
+id = "book"
+title = "Introduction to Intellectual Property"
+author = "David Kline and David Kappos, with OpenStax"
+url = "https://assets.openstax.org/oscms-prodcms/media/documents/introduction-intellectual-property_-_WEB.pdf"
+sha256 = "1498509864d37cb63a6ccc11bab7c783f3d30b2ed37d808ef80c56fdb676378a"
+size_bytes = 24582768
+page_count = 201
+pages = [17, 100]
+licence = "Creative Commons Attribution 4.0 International"
+licence_url = "https://openstax.org/details/books/introduction-intellectual-property"
+layout = "book"
+
+[[document]]
+id = "report-2024"
+title = "UK Energy in Brief 2024"
+author = "Department for Energy Security and Net Zero"
+url = "https://assets.publishing.service.gov.uk/media/687f4cf592957f2ec567c64f/UK_Energy_in_Brief_2024.pdf"
+sha256 = "bed33e10c664152c09327e28d68d4c58bdf55e299089f4630d75ae89fde3871d"
+size_bytes = 12796516
+page_count = 54
+licence = "Open Government Licence v3.0"
+licence_url = "https://www.gov.uk/government/statistics/uk-energy-in-brief-2024"
+layout = "report"
+selected_by_default = false

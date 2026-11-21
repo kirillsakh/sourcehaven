@@ -1,0 +1,4 @@
+# Questions for the retrieval benchmark: each entry names a corpus document, the question, and the
+# source spans that answer it (or marks it unanswerable). No questions are recorded yet; an empty
+# file is valid. The format and the authoring rules are in
+# docs/superpowers/specs/2026-11-20-corpus-and-harness-design.md, section 3.3.
