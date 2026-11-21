@@ -1,4 +1,454 @@
 # Questions for the retrieval benchmark: each entry names a corpus document, the question, and the
-# source spans that answer it (or marks it unanswerable). No questions are recorded yet; an empty
-# file is valid. The format and the authoring rules are in
-# docs/superpowers/specs/2026-11-20-corpus-and-harness-design.md, section 3.3.
+# source spans that answer it (or marks it unanswerable). The format and the authoring rules are in
+# docs/superpowers/specs/2026-11-20-corpus-and-harness-design.md, section 3.3. Gold spans were typed
+# from the rendered pages; page numbers are physical. A comment above a span records where pypdf's
+# extraction differs from the page.
+
+# Contract
+
+[[question]]
+id = "contract-01"
+kind = "answerable"
+text = "How long does a force majeure event have to go on before the Authority can terminate the contract?"
+reference_answer = "The Authority may terminate once a Force Majeure Event has lasted continuously for more than 90 days."
+
+[[question.gold]]
+document = "contract"
+page = 72
+text = "if a Force Majeure Event endures for a continuous period of more than ninety (90) days"
+
+[[question]]
+id = "contract-02"
+kind = "answerable"
+text = "How much notice does the supplier have to give before replacing one of its key people?"
+reference_answer = "At least 60 Working Days' notice, except in cases of death, unexpected ill health or a material breach of the person's employment contract."
+
+[[question.gold]]
+document = "contract"
+page = 31
+text = "except in the cases of death, unexpected ill health or a material breach of the Key Personnel's employment contract, this will mean at least 60 Working Days' notice"
+
+[[question]]
+id = "contract-03"
+kind = "answerable"
+text = "For how long must goods sold by the supplier stay free of defects?"
+reference_answer = "The goods must remain free from material defects in design, materials and workmanship for 12 months after delivery."
+
+[[question.gold]]
+document = "contract"
+page = 23
+text = "the Supplier shall ensure that the Goods are free from material defects in design, materials and workmanship and remain so for 12 months after delivery"
+
+[[question]]
+id = "contract-04"
+kind = "answerable"
+text = "When is the supplier allowed to end the contract because the Authority has not paid?"
+reference_answer = "When an undisputed sum above the agreed threshold is still unpaid 40 Working Days after the Authority receives the supplier's notice of non-payment."
+
+[[question.gold]]
+document = "contract"
+page = 73
+text = "such amount remains outstanding 40 Working Days after the receipt by the Authority of a notice of non-payment from the Supplier"
+
+[[question]]
+id = "contract-05"
+kind = "answerable"
+text = "If I send a notice under the contract by email, when does it count as served?"
+reference_answer = "An emailed notice is deemed served at 9.00am on the first Working Day after it is sent."
+
+[[question.gold]]
+document = "contract"
+page = 83
+text = "Email 9.00am on the first Working Day after sending Dispatched as a pdf attachment to an e-mail to the correct e-mail address without any error message."
+
+[[question]]
+id = "contract-06"
+kind = "answerable"
+text = "What is the most the supplier can be liable for each year for damaging the Authority's premises or property?"
+reference_answer = "Its liability is capped at £10 million per Contract Year, a bracketed figure the parties can adjust."
+
+[[question.gold]]
+document = "contract"
+page = 58
+text = "that is caused by Defaults of the Supplier occurring in each and any Contract Year shall in no event exceed [£10 million]"
+
+# Paper
+
+[[question]]
+id = "paper-01"
+kind = "answerable"
+text = "How accurate is BERT at next sentence prediction after pre-training?"
+reference_answer = "The final pre-trained model reaches 97% to 98% accuracy on next sentence prediction."
+
+[[question.gold]]
+document = "paper"
+page = 4
+text = "The final model achieves 97%-98% accuracy on NSP."
+
+[[question]]
+id = "paper-02"
+kind = "answerable"
+text = "How quickly can BERT be fine-tuned for SQuAD on a single Cloud TPU?"
+reference_answer = "In about 30 minutes on one Cloud TPU, reaching a Dev F1 score of 91.0%."
+
+[[question.gold]]
+document = "paper"
+page = 5
+text = "For example, the BERT SQuAD model can be trained in around 30 minutes on a single Cloud TPU to achieve a Dev F1 score of 91.0%."
+
+[[question]]
+id = "paper-03"
+kind = "answerable"
+text = "What average GLUE test score did OpenAI GPT get in the BERT paper's comparison?"
+reference_answer = "OpenAI GPT averaged 75.1 across the GLUE test tasks."
+
+[[question.gold]]
+document = "paper"
+page = 6
+text = "OpenAI GPT 82.1/81.4 70.3 87.4 91.3 45.4 80.0 82.3 56.0 75.1"
+
+[[question]]
+id = "paper-04"
+kind = "answerable"
+text = "Which epochs, learning rate and batch size were used to fine-tune BERT on SQuAD 2.0?"
+reference_answer = "It was fine-tuned for 2 epochs with a learning rate of 5e-5 and a batch size of 48."
+
+[[question.gold]]
+document = "paper"
+page = 7
+text = "We fine-tuned for 2 epochs with a learning rate of 5e-5 and a batch size of 48."
+
+[[question]]
+id = "paper-05"
+kind = "answerable"
+text = "How well did the ESIM+ELMo baseline do on SWAG?"
+reference_answer = "ESIM+ELMo scored 59.1 on the SWAG dev set and 59.2 on the test set."
+
+[[question.gold]]
+document = "paper"
+page = 7
+text = "ESIM+ELMo 59.1 59.2"
+
+[[question]]
+id = "paper-06"
+kind = "answerable"
+text = "How long did it take to pre-train BERT?"
+reference_answer = "Each pre-training run took 4 days."
+
+[[question.gold]]
+document = "paper"
+page = 13
+text = "Each pre-training took 4 days to complete."
+
+# Manual
+
+[[question]]
+id = "manual-01"
+kind = "answerable"
+text = "Is there a standard symbol for the year?"
+reference_answer = "No universally accepted symbol exists, but ISO 80000-3 suggests the symbol a."
+
+# pypdf splits a word in this sentence: the page reads "symbol for the year", pypdf gives "fo r".
+[[question.gold]]
+document = "manual"
+page = 35
+text = "Although there is no universally accepted symbol for the year, Ref. [4: ISO 80000-3] suggests the symbol a."
+
+[[question]]
+id = "manual-02"
+kind = "answerable"
+text = "Should liters be used when reporting high-accuracy volume measurements?"
+reference_answer = "No; the CGPM recommends not using the liter for the results of high accuracy volume measurements."
+
+[[question.gold]]
+document = "manual"
+page = 35
+text = "the CGPM recommends that the liter not be used to give the results of high accuracy measurements of volumes [1, 2]"
+
+[[question]]
+id = "manual-03"
+kind = "answerable"
+text = "Can the amagat be used as a unit for molar volume?"
+reference_answer = "No; the amagat should not be used to express molar volumes or reciprocal molar volumes."
+
+[[question.gold]]
+document = "manual"
+page = 39
+text = "The amagat should not be used to express molar volumes or reciprocal molar volumes."
+
+[[question]]
+id = "manual-04"
+kind = "answerable"
+text = "What is the gal unit used for?"
+reference_answer = "The gal is used in geodesy and geophysics for acceleration due to gravity."
+
+[[question.gold]]
+document = "manual"
+page = 23
+text = "The gal is employed in geodesy and geophysics to express acceleration due to gravity."
+
+[[question]]
+id = "manual-05"
+kind = "answerable"
+text = "What is the SI unit of electric charge called, and how is it expressed in base units?"
+reference_answer = "The coulomb, symbol C, which is s · A in SI base units."
+
+[[question.gold]]
+document = "manual"
+page = 17
+text = "electric charge, amount of electricity coulomb C s · A"
+
+[[question]]
+id = "manual-06"
+kind = "answerable"
+text = "Which symbol does the guide accept for the hour, and how many seconds is one hour?"
+reference_answer = "The hour has the symbol h and equals 60 min, or 3600 s."
+
+# pypdf reads Table 6 column by column (all names, then all symbols, then all values), so the
+# "hour" row never appears as one line in the extracted text.
+[[question.gold]]
+document = "manual"
+page = 20
+text = "hour h 1 h = 60 min = 3600 s"
+
+# Report
+
+[[question]]
+id = "report-01"
+kind = "answerable"
+text = "Which was the UK's last coal-fired power station, and when did it close?"
+reference_answer = "Ratcliffe-on-Soar, the last remaining coal-fired power station, closed on 30 September 2024."
+
+[[question.gold]]
+document = "report"
+page = 21
+text = "The last remaining coal-fired power station - Ratcliffe-on-Soar - closed on 30 September 2024."
+
+[[question]]
+id = "report-02"
+kind = "answerable"
+text = "How much was invested in the UK energy industries in 2024?"
+reference_answer = "Investment was £23.6 billion at current prices, 28% more than in 2023."
+
+[[question.gold]]
+document = "report"
+page = 9
+text = "In 2024 investment in the energy industries at £23.6 billion (at current prices) was 28% higher than in 2023."
+
+[[question]]
+id = "report-03"
+kind = "answerable"
+text = "Until when does the ECO4 home energy efficiency scheme run?"
+reference_answer = "ECO4 runs from April 2022 to March 2026."
+
+[[question.gold]]
+document = "report"
+page = 39
+text = "ECO4 is set to run from April 2022 to March 2026."
+
+[[question]]
+id = "report-04"
+kind = "answerable"
+text = "How many UK homes had loft insulation at least 125mm thick at the end of 2023?"
+reference_answer = "About 17,510 thousand homes, roughly 17.5 million, had such loft insulation at the end of 2023."
+
+[[question.gold]]
+document = "report"
+page = 40
+text = "Loft insulation >= 125mm 15,870 16,230 16,650 17,070 17,510 17,740"
+
+[[question]]
+id = "report-05"
+kind = "answerable"
+text = "How many households switched their gas supplier in 2022?"
+reference_answer = "About 566 thousand households switched gas supplier in 2022."
+
+[[question.gold]]
+document = "report"
+page = 48
+text = "Gas 3,059 3,511 3,556 4,336 566 1,195 2,092"
+
+[[question]]
+id = "report-06"
+kind = "answerable"
+text = "What energy efficiency rating does England's fuel poverty target aim for by 2030?"
+reference_answer = "The target is for as many fuel poor households as reasonably practicable to reach at least Band C by 2030."
+
+[[question.gold]]
+document = "report"
+page = 43
+text = "The target is to ensure that as many fuel poor households as reasonably practicable achieve a minimum energy efficiency rating of Band C by 2030"
+
+# Book
+
+[[question]]
+id = "book-01"
+kind = "answerable"
+text = "How long did the Venetian patent law protect inventors?"
+reference_answer = "The Venetian Statute of 1474 protected inventors from copiers for ten years if they disclosed their inventions."
+
+[[question.gold]]
+document = "book"
+page = 23
+text = "The Venetian Statute of 1474 decreed that the inventors of new and useful devices would be protected from infringers and copiers for ten years so long as they disclosed the details of their inventions."
+
+[[question]]
+id = "book-02"
+kind = "answerable"
+text = "What did a patent cost under the first US patent law?"
+reference_answer = "The fee was $3.70 at first and was raised to $30 three years later."
+
+[[question.gold]]
+document = "book"
+page = 29
+text = "The original patent law passed by Congress on April 10, 1790, deliberately set patent fees to a level any ordinary citizen could afford—initially $3.70, but three years later raised to $30."
+
+[[question]]
+id = "book-03"
+kind = "answerable"
+text = "How many patent applications did the USPTO receive in 2014, and how many were granted?"
+reference_answer = "The USPTO received 578,802 applications in 2014 and found 300,678 worthy of a patent."
+
+[[question.gold]]
+document = "book"
+page = 40
+text = "In 2014, the USPTO received 578,802 applications, finding 300,678 of these applications worthy of receiving a patent."
+
+[[question]]
+id = "book-04"
+kind = "answerable"
+text = "When were plant patents introduced in the United States, and who proposed them?"
+reference_answer = "Plant patents were created by the Patent Act of 1930, which Luther Burbank had proposed."
+
+[[question.gold]]
+document = "book"
+page = 55
+text = "Plant patents were first created by the Patent Act of 1930 (https://www.openstax.org/l/PatentAct1930), which had been proposed by Luther Burbank"
+
+[[question]]
+id = "book-05"
+kind = "answerable"
+text = "How common had inequitable conduct accusations become in patent cases by 2009?"
+reference_answer = "Inequitable conduct was charged in 40 percent of patent cases by 2009, up from under 5 percent in 2000."
+
+[[question.gold]]
+document = "book"
+page = 86
+text = "Research showed that the percentage of patent cases in which inequitable conduct was charged grew from less than 5 percent in 2000 to 40 percent by 2009."
+
+[[question]]
+id = "book-06"
+kind = "answerable"
+text = "How did the Seagate decision change how often willful infringement led to enhanced damages?"
+reference_answer = "Enhanced damages followed a willfulness finding in 81.4 percent of cases before Seagate in 2007 and in 54.9 percent after it."
+
+[[question.gold]]
+document = "book"
+page = 88
+text = "Before the Seagate restrictions were imposed in 2007, 81.4 percent of cases finding willful infringement resulted in an award of enhanced damages, but after Seagate, that number fell to 54.9 percent."
+
+# Conflicts between the 2025 and 2024 editions of UK Energy in Brief
+
+[[question]]
+id = "conflict-01"
+kind = "conflict"
+text = "What share of the UK's energy was imported in 2023?"
+documents = ["contract", "paper", "manual", "report", "book", "report-2024"]
+reference_answer = "The 2025 edition gives 2023 import dependency as 40%, while the 2024 edition gives 41%."
+
+[[question.gold]]
+document = "report"
+page = 13
+text = "Total -17% 30% 28% 37% 40% 44%"
+
+[[question.gold]]
+document = "report-2024"
+page = 13
+text = "Total -17% 13% 30% 28% 38% 37% 41%"
+
+[[question]]
+id = "conflict-02"
+kind = "conflict"
+text = "What was total UK natural gas demand in 2023?"
+documents = ["contract", "paper", "manual", "report", "book", "report-2024"]
+reference_answer = "The 2025 edition reports 700.0 TWh for 2023, while the 2024 edition reports 696.3 TWh."
+
+[[question.gold]]
+document = "report"
+page = 27
+text = "Total 597.0 1,105.5 1,082.2 812.6 776.5 700.0 683.9"
+
+[[question.gold]]
+document = "report-2024"
+page = 27
+text = "Total 597.0 1,105.5 1,082.2 812.6 851.2 777.9 696.3"
+
+[[question]]
+id = "conflict-03"
+kind = "conflict"
+text = "How much did the energy industries contribute to UK GVA in 2023?"
+documents = ["contract", "paper", "manual", "report", "book", "report-2024"]
+reference_answer = "The 2025 edition puts the 2023 contribution at 2.8% of GVA, while the 2024 edition puts it at 1.9%."
+
+[[question.gold]]
+document = "report"
+page = 7
+text = "In 2024, the contribution by the energy industries to the UK economy was 2.4% of GVA, down from 2.8% in 2023."
+
+[[question.gold]]
+document = "report-2024"
+page = 7
+text = "In 2023, the contribution by the energy industries to the UK economy was 1.9% of GVA, broadly similar to 2022."
+
+# Unanswerable: none-01 to none-07 are near-misses on subjects the corpus discusses; none-08 to
+# none-10 are off topic.
+
+[[question]]
+id = "none-01"
+kind = "unanswerable"
+text = "How many electric cars were on UK roads in 2024?"
+
+[[question]]
+id = "none-02"
+kind = "unanswerable"
+text = "What was the average annual household electricity bill in the UK in 2024, in pounds?"
+
+[[question]]
+id = "none-03"
+kind = "unanswerable"
+text = "What were the UK's total greenhouse gas emissions in 2025?"
+
+[[question]]
+id = "none-04"
+kind = "unanswerable"
+text = "How much money did it cost to pre-train BERT-Large?"
+
+[[question]]
+id = "none-05"
+kind = "unanswerable"
+text = "How much professional indemnity insurance must the supplier carry under the contract?"
+
+[[question]]
+id = "none-06"
+kind = "unanswerable"
+text = "How many years does a US design patent last?"
+
+[[question]]
+id = "none-07"
+kind = "unanswerable"
+text = "What value of the Planck constant is used to define the kilogram?"
+
+[[question]]
+id = "none-08"
+kind = "unanswerable"
+text = "How much vitamin D should an adult take each day?"
+
+[[question]]
+id = "none-09"
+kind = "unanswerable"
+text = "Which country won the 2022 FIFA World Cup?"
+
+[[question]]
+id = "none-10"
+kind = "unanswerable"
+text = "How long should sourdough bread dough rise before baking?"
