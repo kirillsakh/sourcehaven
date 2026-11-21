@@ -58,8 +58,9 @@ a fresh implementer and a reviewer per task.
 | Unanswerable refused | 0 % | 20 % | 30 % | 30 % | 40 % | 60 % | 80 % | 90 % | 90 % | 100 % |
 
 **Speed** (development host, x86_64 Mac with the Compose TEI limits; informative only, not for
-acceptance): extraction 0.033 s per page; 2.08 passages per page; 793 passages embedded at
-2.4–2.6 passages per second; query embedding p50 39–42 ms, p95 52–84 ms.
+acceptance): extraction 0.026 s per page (12.7 s over the 499 pages pypdf parsed, which is the
+whole file of every document; the second run gives 0.025); 2.08 passages per excerpt page; 793
+passages embedded at 2.4–2.6 passages per second; query embedding p50 39–42 ms, p95 52–84 ms.
 
 ## Findings for pieces 3–5
 
@@ -67,6 +68,9 @@ acceptance): extraction 0.033 s per page; 2.08 passages per page; 793 passages e
   - Both extraction failures are pypdf's. `manual-01` fails on "fo r" split mid-word on p35, and
     `manual-06` because Table 6 on p20 is read column by column.
   - Both questions are therefore misses whatever the passage size or model.
+  - Gold has one location per span, but a few facts appear twice: `manual-06` is also answered on
+    p62 and p79, and `report-01` on p29 and p30. Recall counts only the annotated location, so it
+    can understate what a model could answer.
 - **Passage size and model (pieces 4–5):**
   - `paper-04` and `paper-06` are found but ranked 15 and 18, outside the top 8. Both answers are
     short facts inside long two-column paper passages; smaller passages may help.
@@ -77,12 +81,23 @@ acceptance): extraction 0.033 s per page; 2.08 passages per page; 793 passages e
   - 0.20–0.35 refuses 20–30 % of the unanswerable questions without losing recall. Anything higher
     costs recall quickly.
   - The model's instruction to say when the passages do not contain the answer stays necessary.
-- **Quote precision is low for numbers and tables:**
-  - Every span under 80 % coverage is a table row, a conflict figure, or a clause with a placeholder
-    (contract-02/05/06, paper-03, report-04/05, all three conflict questions).
-  - Quote selection replaces dates and amounts with "…" (quote-selection ruling 3) and works on
-    sentences, so a quote built from a table row loses exactly the numbers that answer the question.
-  - This is worth revisiting with piece 4, or as its own quote fix.
+- **Quote precision is low for numbers and tables:** 12 spans score under 80 % coverage. The
+  baseline quotes (`report.json`) show three causes.
+  - Numbers are replaced by "…" (quote-selection ruling 3) and selection works on sentences, so a
+    table row or figure is quoted as a caption or a neighbouring sentence. Examples: report-04
+    (27 %) and report-05 (7 %) quote the surrounding prose, paper-03 (9 %) quotes the note under
+    the results table, contract-05 (22 %) keeps "…Email 9.00am on the first …", and the conflict
+    questions (0–19 %) quote chart titles or a bullet fragment instead of the figures.
+  - A long run-on sentence is cut at the 300-character limit: contract-02 (38 %) loses the "60
+    Working Days' notice" that the span states.
+  - A wrong clause in repetitive legal text: contract-06 quotes clause 23.4.2 (liability for
+    Government Data), not the Defaults clause in the gold span, yet scores 73 % because the clauses
+    share most of their wording.
+- **Quote precision is a proxy and close to an upper bound.** The reference answer stands in for
+  the sentence a model would cite, and it often repeats the span's wording, which flatters the
+  match. Coverage near 80 % in repetitive text (contract-06) therefore needs a look at the quote
+  itself, not only at the number.
+- Revisit quote selection for numbers and tables in piece 4, or as its own quote fix.
 - **Embedding throughput** on the development host (2.5 passages/s) is below the parent §8.3
   criterion of 5 per second. Acceptance is measured on the target VM in piece 5.
 
