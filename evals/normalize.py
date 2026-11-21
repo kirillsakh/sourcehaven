@@ -4,8 +4,9 @@ from collections import Counter
 
 _SOFT_HYPHEN: str = "\u00ad"
 _HYPHEN_LIKE: re.Pattern[str] = re.compile(r"[\u2010-\u2015\u2212]")
-# A hyphen at the end of a printed line splits a word; it is removed together with the break.
-_LINE_END_HYPHEN: re.Pattern[str] = re.compile(r"-\s*\n\s*")
+# Typed spans and extracted text disagree on spaces around dashes and on line-end hyphenation, so
+# a hyphen is removed together with any whitespace (including a line break) around it.
+_HYPHEN_WITH_SPACE: re.Pattern[str] = re.compile(r"\s*-\s*")
 _SINGLE_QUOTES: re.Pattern[str] = re.compile(r"[\u2018\u2019\u201a\u201b]")
 _DOUBLE_QUOTES: re.Pattern[str] = re.compile(r"[\u201c\u201d\u201e\u201f]")
 _WHITESPACE: re.Pattern[str] = re.compile(r"\s+")
@@ -15,13 +16,13 @@ _WORD: re.Pattern[str] = re.compile(r"\w+")
 def normalize(text: str) -> str:
     """Fold text so that PDF extraction and typography differences compare equal.
 
-    Applies NFKC, drops soft hyphens, joins words split at a line end, drops every other hyphen
-    (so "well-known" and a "well-" / "known" line break agree), straightens quotes, collapses
-    whitespace and casefolds.
+    Applies NFKC, drops soft hyphens, maps every dash to a hyphen and deletes each hyphen with the
+    whitespace around it (so "cats - dogs", "cats-dogs" and a "cats-" / "dogs" line break agree),
+    straightens quotes, collapses whitespace and casefolds.
     """
     folded: str = unicodedata.normalize("NFKC", text).replace(_SOFT_HYPHEN, "")
     folded = _HYPHEN_LIKE.sub("-", folded)
-    folded = _LINE_END_HYPHEN.sub("", folded).replace("-", "")
+    folded = _HYPHEN_WITH_SPACE.sub("", folded)
     folded = _SINGLE_QUOTES.sub("'", folded)
     folded = _DOUBLE_QUOTES.sub('"', folded)
     return _WHITESPACE.sub(" ", folded).casefold().strip()

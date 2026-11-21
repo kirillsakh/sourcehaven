@@ -25,3 +25,14 @@ def test_word_coverage_counts_words_as_a_multiset() -> None:
 def test_word_coverage_rejects_a_span_without_words() -> None:
     with pytest.raises(ValueError):
         word_coverage(" \u2026 ", "anything")
+
+
+def test_dashes_join_words_with_or_without_surrounding_spaces() -> None:
+    assert normalize("cats \u2014 dogs") == normalize("cats\u2014dogs") == "catsdogs"
+    assert normalize("10 \u2212 5") == normalize("10-5")
+    assert normalize("well-  \r\n  known") == "wellknown"
+
+
+def test_word_coverage_partial_and_empty_quote() -> None:
+    assert word_coverage("alpha beta", "alpha gamma") == 0.5
+    assert word_coverage("alpha", "") == 0.0
