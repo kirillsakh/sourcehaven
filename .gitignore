@@ -38,3 +38,8 @@ htmlcov/
 
 # Local agent workspaces
 /.superpowers/
+
+# Benchmark data
+/evals/corpus/files/
+/evals/.cache/
+/evals/reports/

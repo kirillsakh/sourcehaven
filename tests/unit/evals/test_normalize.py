@@ -1,0 +1,27 @@
+import pytest
+
+from evals.normalize import normalize, word_coverage
+
+
+def test_ligatures_case_and_whitespace() -> None:
+    assert normalize("The  \ufb01rst\nRule") == "the first rule"
+
+
+def test_line_end_hyphen_joins_and_other_hyphens_vanish() -> None:
+    assert normalize("represen-\ntation") == normalize("representation")
+    assert normalize("well-\nknown") == normalize("well-known") == "wellknown"
+
+
+def test_soft_hyphen_dashes_and_quotes() -> None:
+    assert normalize("co\u00adoperate") == "cooperate"
+    assert normalize("\u201cA\u201d \u2013 \u2018b\u2019") == normalize("\"A\" - 'b'")
+
+
+def test_word_coverage_counts_words_as_a_multiset() -> None:
+    assert word_coverage("the cat and the dog", "The cat \u2026 the dog") == 0.8
+    assert word_coverage("24 months", "warranty of 24 months") == 1.0
+
+
+def test_word_coverage_rejects_a_span_without_words() -> None:
+    with pytest.raises(ValueError):
+        word_coverage(" \u2026 ", "anything")

@@ -93,10 +93,10 @@ convention = "google"
 ban-relative-imports = "all"
 
 [tool.ruff.lint.isort]
-known-first-party = ["sourcehaven"]
+known-first-party = ["sourcehaven", "evals"]
 
 [tool.mypy]
 python_version = "3.14"
 strict = true
-files = ["src", "tests", "scripts"]
+files = ["src", "tests", "scripts", "evals"]
 warn_unreachable = true
