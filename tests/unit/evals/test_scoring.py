@@ -63,6 +63,7 @@ def span_outcome(
         location=location,
         split=split,
         best_rank=1 if selected else None,
+        best_document_rank=1 if selected else None,
         selected=selected,
         page_correct=page_correct,
         quote=None if quote_coverage is None else "quote",

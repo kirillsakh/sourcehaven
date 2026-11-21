@@ -16,11 +16,11 @@ _WORD: re.Pattern[str] = re.compile(r"\w+")
 def normalize(text: str) -> str:
     """Fold text so that PDF extraction and typography differences compare equal.
 
-    Applies NFKC, drops soft hyphens, maps every dash to a hyphen and deletes each hyphen with the
+    Applies NFKC, maps soft hyphens and every dash to a hyphen and deletes each hyphen with the
     whitespace around it (so "cats - dogs", "cats-dogs" and a "cats-" / "dogs" line break agree),
     straightens quotes, collapses whitespace and casefolds.
     """
-    folded: str = unicodedata.normalize("NFKC", text).replace(_SOFT_HYPHEN, "")
+    folded: str = unicodedata.normalize("NFKC", text).replace(_SOFT_HYPHEN, "-")
     folded = _HYPHEN_LIKE.sub("-", folded)
     folded = _HYPHEN_WITH_SPACE.sub("", folded)
     folded = _SINGLE_QUOTES.sub("'", folded)

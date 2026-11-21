@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,8 @@ CONTEXT: RunContext = RunContext(
     corpus_version=3,
     questions_sha256="f" * 64,
     label="test",
+    tokenizer_file=Path("/cache/tokenizer.json"),
+    tokenizer_sha256="e" * 64,
 )
 
 
@@ -74,6 +77,7 @@ def span_outcome(
     *,
     split: bool = False,
     best_rank: int | None = None,
+    best_document_rank: int | None = None,
     selected: bool = False,
 ) -> SpanOutcome:
     return SpanOutcome(
@@ -81,6 +85,7 @@ def span_outcome(
         location=location,
         split=split,
         best_rank=best_rank,
+        best_document_rank=best_document_rank,
         selected=selected,
         page_correct=True if selected else None,
         quote=span.text if selected else None,
@@ -104,7 +109,7 @@ def make_result() -> BenchmarkResult:
             covering_rank=None,
             hit=False,
             spans=(
-                span_outcome(_MISSED_SPAN, "other_page", best_rank=12),
+                span_outcome(_MISSED_SPAN, "other_page", best_rank=12, best_document_rank=3),
                 span_outcome(_LOST_SPAN, "across_pages", split=True),
             ),
             candidates=(Ranked(_PASSAGE, 0.62),),
@@ -204,8 +209,43 @@ def test_summary_lists_misses_with_their_cause() -> None:
     assert "q-3" not in misses
     assert "other_page" in misses
     assert "best_rank=12" in misses
+    assert "best_document_rank=3" in misses
+    assert "cause=ranked too low" in misses
     assert "across_pages" in misses
     assert "split=yes" in misses
+    assert "best_document_rank=n/a" in misses
+    assert "cause=split" in misses
+
+
+def test_miss_cause_distinguishes_each_stage_of_the_pipeline() -> None:
+    cases: list[tuple[SpanOutcome, str]] = [
+        (span_outcome(_MISSED_SPAN, "missing"), "not extracted"),
+        (span_outcome(_MISSED_SPAN, "on_page", split=True), "split"),
+        (
+            span_outcome(_MISSED_SPAN, "on_page", best_rank=8, best_document_rank=2),
+            "dropped by the per-document cap",
+        ),
+        (
+            span_outcome(_MISSED_SPAN, "on_page", best_rank=9, best_document_rank=2),
+            "ranked too low",
+        ),
+        (span_outcome(_HIT_SPAN, "on_page", best_rank=1, selected=True), "selected"),
+    ]
+    for span, cause in cases:
+        question: Question = replace(QUESTIONS[1], gold=(span.span,))
+        missed: QuestionOutcome = QuestionOutcome(
+            question=question,
+            top_similarity=0.5,
+            covering_rank=None,
+            hit=False,
+            spans=(span,),
+            candidates=(),
+        )
+        result: BenchmarkResult = replace(make_result(), outcomes=(missed,))
+
+        summary: str = render_summary(result, summarize(result.outcomes), CONTEXT)
+
+        assert f"cause={cause}" in summary.split("## Misses", maxsplit=1)[1]
 
 
 def test_summary_states_the_context_configuration_and_metrics() -> None:
@@ -219,6 +259,8 @@ def test_summary_states_the_context_configuration_and_metrics() -> None:
     assert "abc123-dirty" in summary
     assert "f" * 64 in summary
     assert "pypdf 9.9.9" in summary
+    assert "/cache/tokenizer.json" in summary
+    assert "e" * 64 in summary
     assert result.config.model_id in summary
     assert "Recall@8" in summary
     assert f"{metrics.recall_at_8:.1%}" in summary
@@ -256,6 +298,8 @@ def test_report_json_round_trips_the_metrics(tmp_path: Path) -> None:
     assert data["context"]["corpus_version"] == 3
     assert data["context"]["questions_sha256"] == "f" * 64
     assert data["context"]["created_at"] == "2026-11-21T09:30:05+00:00"
+    assert data["context"]["tokenizer_file"] == "/cache/tokenizer.json"
+    assert data["context"]["tokenizer_sha256"] == "e" * 64
     assert data["parser"] == {"name": "pypdf", "version": "9.9.9"}
     assert data["config"]["model_id"] == result.config.model_id
     assert data["speed"]["query_p95_ms"] is None

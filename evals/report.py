@@ -8,7 +8,14 @@ from typing import Any, Final
 
 from evals.pipeline import BenchmarkResult
 from evals.questions import Question
-from evals.scoring import Distribution, Metrics, QuestionOutcome, SpanLocation, SpanOutcome
+from evals.scoring import (
+    RECALL_DEPTH,
+    Distribution,
+    Metrics,
+    QuestionOutcome,
+    SpanLocation,
+    SpanOutcome,
+)
 from sourcehaven.domain.models import ExtractedSource
 
 LOCATIONS: Final[tuple[SpanLocation, ...]] = ("on_page", "other_page", "across_pages", "missing")
@@ -29,6 +36,8 @@ class RunContext:
         corpus_version: Version of the corpus manifest.
         questions_sha256: SHA-256 of the question file.
         label: Free name of the run, appended to the report directory.
+        tokenizer_file: The tokenizer file that sized the passages, None when unknown.
+        tokenizer_sha256: SHA-256 of that file, None when unknown.
     """
 
     created_at: datetime
@@ -36,6 +45,8 @@ class RunContext:
     corpus_version: int
     questions_sha256: str
     label: str
+    tokenizer_file: Path | None
+    tokenizer_sha256: str | None
 
 
 def count_locations(locations: Mapping[tuple[str, int], SpanLocation]) -> dict[SpanLocation, int]:
@@ -78,6 +89,8 @@ def render_summary(result: BenchmarkResult, metrics: Metrics, context: RunContex
         f"- Git commit: {context.git_commit}",
         f"- Corpus version: {context.corpus_version}",
         f"- Question file SHA-256: {context.questions_sha256}",
+        f"- Tokenizer file: {context.tokenizer_file or _NOT_AVAILABLE}",
+        f"- Tokenizer SHA-256: {context.tokenizer_sha256 or _NOT_AVAILABLE}",
         f"- Parser: {_parser_label(result)}",
         "",
         "## Configuration",
@@ -236,8 +249,25 @@ def _span_line(index: int, span: SpanOutcome) -> str:
     return (
         f"  - span {index} ({span.span.document}, page {span.span.page}): "
         f"location={span.location}, split={'yes' if span.split else 'no'}, "
-        f"best_rank={span.best_rank if span.best_rank is not None else _NOT_AVAILABLE}"
+        f"best_rank={_rank(span.best_rank)}, best_document_rank={_rank(span.best_document_rank)}, "
+        f"cause={_miss_cause(span)}"
     )
+
+
+def _miss_cause(span: SpanOutcome) -> str:
+    if span.selected:
+        return "selected"
+    if span.location == "missing":
+        return "not extracted"
+    if span.split:
+        return "split"
+    if span.best_rank is not None and span.best_rank <= RECALL_DEPTH:
+        return "dropped by the per-document cap"
+    return "ranked too low"
+
+
+def _rank(rank: int | None) -> str:
+    return _NOT_AVAILABLE if rank is None else str(rank)
 
 
 def _distribution_row(label: str, values: Distribution) -> str:

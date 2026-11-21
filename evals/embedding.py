@@ -23,10 +23,16 @@ def benchmark_config(
     """Build the embedding configuration for a run, overriding the passage size.
 
     Raises:
-        ValueError: If the settings do not select the `tei` provider.
+        ValueError: If the settings do not select the `tei` provider, or the passage size is
+            below one token, the overlap is negative or the overlap is not smaller than the size.
     """
     if settings.embedding_provider != "tei":
         raise ValueError("The benchmark needs embedding_provider=tei")
+    if chunk_tokens < 1 or chunk_overlap < 0 or chunk_overlap >= chunk_tokens:
+        raise ValueError(
+            "chunk_tokens must be at least 1 and chunk_overlap must be at least 0 and below "
+            f"chunk_tokens (got chunk_tokens={chunk_tokens}, chunk_overlap={chunk_overlap})"
+        )
     return replace(
         EmbeddingConfig.from_settings(settings),
         chunk_tokens=chunk_tokens,

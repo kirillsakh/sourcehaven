@@ -253,6 +253,7 @@ async def test_split_and_missing_spans_are_told_apart(
     split: SpanOutcome
     (split,) = outcome(result, "split").spans
     assert (split.location, split.split, split.best_rank) == ("on_page", True, None)
+    assert split.best_document_rank == 1
     assert not split.selected
     assert split.page_correct is None
     assert split.quote is None
@@ -261,6 +262,7 @@ async def test_split_and_missing_spans_are_told_apart(
     missing: SpanOutcome
     (missing,) = outcome(result, "missing").spans
     assert (missing.location, missing.split, missing.best_rank) == ("missing", False, None)
+    assert missing.best_document_rank == 1
     assert outcome(result, "missing").covering_rank is None
 
 
@@ -291,3 +293,47 @@ async def test_a_run_without_questions_still_reports_documents(
     result: BenchmarkResult = await run(manifest, (), files_dir, cache)
     assert result.outcomes == ()
     assert len(result.documents) == 2
+
+
+async def test_best_document_rank_is_the_first_passage_of_the_span_document(
+    manifest: Manifest, files_dir: Path, cache: VectorCache
+) -> None:
+    probe: Question = make_question(
+        "cross",
+        "answerable",
+        "How long is the warranty period?",
+        ("facts", "multipage"),
+        GoldSpan(document="multipage", page=4, text=_BRIDGE),
+    )
+    result: BenchmarkResult = await run(manifest, (probe,), files_dir, cache)
+
+    scored: QuestionOutcome = outcome(result, "cross")
+    (span,) = scored.spans
+    expected: int = 1 + next(
+        index for index, c in enumerate(scored.candidates) if c.passage.document == "multipage"
+    )
+    assert span.best_document_rank == expected
+    assert span.best_rank is not None
+    assert span.best_document_rank <= span.best_rank
+
+
+async def test_extraction_speed_divides_by_the_pages_the_parser_read(
+    files_dir: Path, cache: VectorCache
+) -> None:
+    excerpt: Manifest = Manifest(
+        version=1,
+        documents=(
+            corpus_document("facts", files_dir),
+            corpus_document("multipage", files_dir, page_range=PageSpan(start=3, end=5)),
+        ),
+    )
+
+    result: BenchmarkResult = await run(excerpt, (), files_dir, cache)
+
+    parsed: int = sum(item.source.page_count for item in result.documents)
+    excerpt_pages: int = sum(len(item.source.pages) for item in result.documents)
+    assert parsed > excerpt_pages
+    seconds: float = sum(item.extract_seconds for item in result.documents)
+    assert result.speed.extract_seconds_per_page == pytest.approx(seconds / parsed)
+    passages: int = sum(len(item.passages) for item in result.documents)
+    assert result.speed.passages_per_page == pytest.approx(passages / excerpt_pages)

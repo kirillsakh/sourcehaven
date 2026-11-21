@@ -17,6 +17,11 @@ def test_soft_hyphen_dashes_and_quotes() -> None:
     assert normalize("\u201cA\u201d \u2013 \u2018b\u2019") == normalize("\"A\" - 'b'")
 
 
+def test_soft_hyphen_at_a_line_end_joins_the_word() -> None:
+    assert normalize("inter\u00ad\nnational") == normalize("international") == "international"
+    assert normalize("inter\u00ad national") == "international"
+
+
 def test_word_coverage_counts_words_as_a_multiset() -> None:
     assert word_coverage("the cat and the dog", "The cat \u2026 the dog") == 0.8
     assert word_coverage("24 months", "warranty of 24 months") == 1.0

@@ -4,7 +4,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
@@ -161,7 +161,8 @@ async def run_command(
     """Run the benchmark and write its report.
 
     Args:
-        options: Parsed `run` options.
+        options: Parsed `run` options; `tokenizer_file`, when set, is recorded in the report
+            with its SHA-256.
         embedder: The embedding service; it must be ready, which is checked before any work.
         counter: Token counter of the embedding model's tokenizer.
         measure_latency: Time single-query embedding against the uncached embedder.
@@ -203,6 +204,10 @@ async def run_command(
         corpus_version=manifest.version,
         questions_sha256=file_sha256(options.questions),
         label=options.label,
+        tokenizer_file=options.tokenizer_file,
+        tokenizer_sha256=(
+            file_sha256(options.tokenizer_file) if options.tokenizer_file is not None else None
+        ),
     )
     return write_report(result, metrics, context, options.reports)
 
@@ -345,7 +350,7 @@ async def _run_against_tei(options: RunOptions, settings: Settings) -> Path:
             config.model_id, config.model_revision, options.cache, hub_client
         )
         return await run_command(
-            options,
+            replace(options, tokenizer_file=tokenizer_file),
             embedder=TeiEmbedder(tei_client, config),
             counter=HfTokenCounter(tokenizer_file),
             measure_latency=True,

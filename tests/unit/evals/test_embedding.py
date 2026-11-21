@@ -130,6 +130,20 @@ def test_benchmark_config_overrides_passage_size_and_requires_tei() -> None:
         benchmark_config(Settings(embedding_provider="hash"), chunk_tokens=400, chunk_overlap=60)
 
 
+@pytest.mark.parametrize(
+    ("chunk_tokens", "chunk_overlap"), [(0, 0), (-5, 0), (100, -1), (100, 100), (100, 150)]
+)
+def test_benchmark_config_rejects_an_unusable_passage_size(
+    chunk_tokens: int, chunk_overlap: int
+) -> None:
+    with pytest.raises(ValueError, match="chunk_overlap"):
+        benchmark_config(
+            Settings(embedding_model_revision="abc"),
+            chunk_tokens=chunk_tokens,
+            chunk_overlap=chunk_overlap,
+        )
+
+
 async def test_tokenizer_is_downloaded_once(tmp_path: Path) -> None:
     requested: list[str] = []
 

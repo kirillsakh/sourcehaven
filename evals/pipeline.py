@@ -54,6 +54,9 @@ class SpeedFigures:
     """Informative speed figures of one run, measured on the development host.
 
     Attributes:
+        extract_seconds_per_page: Total extraction time divided by the pages the parser actually
+            read, that is the whole-file page count of every document, not only the excerpts.
+        passages_per_page: Passages divided by the excerpt pages they were cut from.
         embedded_passages: Passages sent to the embedder (not served from the vector cache).
         passages_per_second: Embedding rate of those passages; None when none were embedded.
         query_p50_ms: Median query-embedding latency; None without a latency embedder.
@@ -258,6 +261,10 @@ async def _score_span(
     best_rank: int | None = next(
         (rank for rank, r in enumerate(ranking, start=1) if contains(r.passage, span)), None
     )
+    best_document_rank: int | None = next(
+        (rank for rank, r in enumerate(ranking, start=1) if r.passage.document == span.document),
+        None,
+    )
     first_chosen: Ranked | None = next((r for r in chosen if contains(r.passage, span)), None)
     quote: str | None = None
     coverage: float | None = None
@@ -269,6 +276,7 @@ async def _score_span(
         location=location,
         split=location != "missing" and not in_document,
         best_rank=best_rank,
+        best_document_rank=best_document_rank,
         selected=first_chosen is not None,
         page_correct=(
             None
@@ -317,7 +325,8 @@ def _speed(
     embed_seconds: float,
     latencies: Sequence[float],
 ) -> SpeedFigures:
-    pages: int = sum(len(item.source.pages) for item in documents)
+    excerpt_pages: int = sum(len(item.source.pages) for item in documents)
+    parsed_pages: int = sum(item.source.page_count for item in documents)
     passages: int = sum(len(item.passages) for item in documents)
     extract_seconds: float = sum(item.extract_seconds for item in documents)
     p50: float | None = None
@@ -328,8 +337,8 @@ def _speed(
         cuts: list[float] = statistics.quantiles(latencies, n=100, method="inclusive")
         p50, p95 = cuts[_P50_INDEX], cuts[_P95_INDEX]
     return SpeedFigures(
-        extract_seconds_per_page=extract_seconds / pages if pages else 0.0,
-        passages_per_page=passages / pages if pages else 0.0,
+        extract_seconds_per_page=extract_seconds / parsed_pages if parsed_pages else 0.0,
+        passages_per_page=passages / excerpt_pages if excerpt_pages else 0.0,
         embedded_passages=embedded,
         passages_per_second=embedded / embed_seconds if embedded and embed_seconds > 0 else None,
         query_p50_ms=p50,

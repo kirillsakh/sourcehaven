@@ -13,7 +13,7 @@ QUOTE_COVERAGE_THRESHOLD: Final[float] = 0.8
 
 _NAMESPACE: Final[uuid.UUID] = uuid.uuid5(uuid.NAMESPACE_URL, "sourcehaven-evals")
 _ANSWERED_KINDS: Final[frozenset[str]] = frozenset({"answerable", "conflict"})
-_RECALL_DEPTH: Final[int] = 8
+RECALL_DEPTH: Final[int] = 8
 _MRR_DEPTH: Final[int] = 10
 _THRESHOLD_STEPS: Final[int] = 100
 _PAGE_SEPARATOR: Final[str] = "\n\n"
@@ -28,6 +28,7 @@ class Passage:
     Attributes:
         document: Corpus document id.
         ordinal: Position of the passage within the document.
+        text: The passage as the splitter produced it, before normalisation.
         normalized: `normalize(text)`, kept so that containment checks do not renormalise.
         pages: Pages the passage covers.
     """
@@ -66,6 +67,8 @@ class SpanOutcome:
         location: Where the span's text occurs in the document's extracted pages.
         split: The text was extracted but no single passage contains it.
         best_rank: Rank of the best-ranked passage containing the span, if any.
+        best_document_rank: 1-based rank, in the question's full ranking, of the highest-ranked
+            passage from the span's document; None when the document has no passage in it.
         selected: A passage containing the span is among the passages `select_evidence` chose.
         page_correct: Whether that passage's pages include the gold page; None when not selected.
         quote: The quote selected from that passage, if one was selected.
@@ -76,6 +79,7 @@ class SpanOutcome:
     location: SpanLocation
     split: bool
     best_rank: int | None
+    best_document_rank: int | None
     selected: bool
     page_correct: bool | None
     quote: str | None
@@ -90,6 +94,7 @@ class QuestionOutcome:
         top_similarity: Highest candidate similarity, None without candidates.
         covering_rank: See `covering_rank`; None for unanswerable questions.
         hit: Every gold span is contained in the passages `select_evidence` chose at threshold 0.
+        spans: One outcome per gold span, in gold order; empty for unanswerable questions.
         candidates: The ranked candidates, most similar first.
     """
 
@@ -166,6 +171,7 @@ def choose_passages(candidates: Sequence[Ranked], *, threshold: float) -> list[R
     }
     chosen: list[Evidence] = select_evidence(
         [ranked.passage.evidence(ranked.similarity) for ranked in candidates],
+        max_total=RECALL_DEPTH,
         threshold=threshold,
     )
     return [by_chunk[evidence.chunk_id] for evidence in chosen]

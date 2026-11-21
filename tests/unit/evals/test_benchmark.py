@@ -289,6 +289,19 @@ def test_run_reports_an_unreachable_tei_without_writing_anything(
     assert not options.cache.exists()
 
 
+def test_run_rejects_an_overlap_that_is_not_smaller_than_the_passage_size(
+    options: RunOptions, capsys: pytest.CaptureFixture[str]
+) -> None:
+    exit_code: int = main(
+        ["run", *shared_args(options), "--chunk-tokens", "10", "--chunk-overlap", "10"]
+    )
+
+    assert exit_code == 2
+    assert "chunk_overlap" in capsys.readouterr().err
+    assert not options.reports.exists()
+    assert not options.cache.exists()
+
+
 async def test_run_stops_before_any_work_when_tei_is_not_ready(options: RunOptions) -> None:
     embedder: CountingNotReadyEmbedder = CountingNotReadyEmbedder()
 
@@ -318,6 +331,8 @@ async def test_run_command_writes_a_report_on_the_fixtures(options: RunOptions) 
         == hashlib.sha256(options.questions.read_bytes()).hexdigest()
     )
     assert data["context"]["label"] == "test"
+    assert data["context"]["tokenizer_file"] is None
+    assert data["context"]["tokenizer_sha256"] is None
     assert data["metrics"]["answered_questions"] == 2
     assert data["metrics"]["recall_at_8"] == 1.0
     assert data["speed"]["query_p50_ms"] is not None
@@ -325,6 +340,25 @@ async def test_run_command_writes_a_report_on_the_fixtures(options: RunOptions) 
     assert [item["question"]["id"] for item in data["outcomes"]] == ["warranty", "bridge", "peru"]
     assert "Recall@8" in (directory / "summary.md").read_text()
     assert (options.cache / "vectors.sqlite3").is_file()
+
+
+async def test_run_command_records_the_tokenizer_file(options: RunOptions, tmp_path: Path) -> None:
+    tokenizer_file: Path = tmp_path / "tokenizer.json"
+    tokenizer_file.write_bytes(b'{"model": {}}')
+
+    directory: Path = await run_command(
+        replace(options, tokenizer_file=tokenizer_file),
+        embedder=HashEmbedder(),
+        counter=WhitespaceTokenCounter(),
+        measure_latency=False,
+    )
+
+    data: dict[str, Any] = json.loads((directory / "report.json").read_text())
+    assert data["context"]["tokenizer_file"] == str(tokenizer_file)
+    assert data["context"]["tokenizer_sha256"] == hashlib.sha256(b'{"model": {}}').hexdigest()
+    summary: str = (directory / "summary.md").read_text()
+    assert str(tokenizer_file) in summary
+    assert hashlib.sha256(b'{"model": {}}').hexdigest() in summary
 
 
 async def test_run_command_skips_latency_when_not_measured(options: RunOptions) -> None:
