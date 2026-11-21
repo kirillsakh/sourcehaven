@@ -144,9 +144,23 @@ passages embedded at 2.4–2.6 passages per second; query embedding p50 39–42 
 - **TEI container recreated:** to publish port 8081, the TEI container was recreated. The first
   attempt hit a Docker "zombie" error and stopped it for about a minute, after which it was brought
   back with the port. The owner's `api` and `worker` were not restarted.
-- **Deferred minors** from the task reviews are in the execution ledger
-  (`.superpowers/sdd/2026-11-21-corpus-and-harness/progress.md`, local) and are triaged in the
-  final review.
+- **Deferred minors** (left open by the final review; fix opportunistically, the first two with
+  piece 3's first commit):
+  - `tests/unit/evals/test_pipeline.py:311`: `(span,) = scored.spans` lacks a type annotation.
+  - This checkpoint calls the conflict quotes "chart titles or a bullet fragment". `conflict-02`
+    actually quotes prose sentences, still without the figures.
+  - `run` downloads the tokenizer and loads it before TEI's readiness check, and a bad
+    `--tokenizer-file` ends in a traceback rather than a one-line error with exit 2.
+  - The `VectorCache` instances in `test_embedding.py` are not closed (ResourceWarning under
+    `-W default`).
+  - Untested: `fetch` aborting a download that grows past the pinned size, and truncation of the
+    ranking to `CANDIDATE_LIMIT`. The quote test's gold sentence starts its passage, so it cannot
+    tell real selection from a passage-start quote.
+  - The vector cache key includes passage size and overlap. Every size in piece 4's sweep therefore
+    re-embeds the questions and quote sentences. That costs time, not correctness.
+  - A report written twice in the same second with the same label overwrites the first.
+  - Spec §4.3 still says soft hyphens are "removed"; they are now mapped to a hyphen and joined,
+    which has the same effect.
 - Earlier open items are unchanged (see the quote-selection checkpoint).
 
 ## Next
