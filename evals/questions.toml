@@ -99,8 +99,8 @@ text = "For example, the BERT SQuAD model can be trained in around 30 minutes on
 [[question]]
 id = "paper-03"
 kind = "answerable"
-text = "What average GLUE test score did OpenAI GPT get in the BERT paper's comparison?"
-reference_answer = "OpenAI GPT averaged 75.1 across the GLUE test tasks."
+text = "What was OpenAI GPT's average across the GLUE tasks in the paper's results table?"
+reference_answer = "In the paper's GLUE results table, OpenAI GPT's average is 75.1."
 
 [[question.gold]]
 document = "paper"
